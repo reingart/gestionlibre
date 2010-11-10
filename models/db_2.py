@@ -1,0 +1,60 @@
+# coding: utf8
+
+# product main category
+db.define_table('category',
+    Field('id', type='id'),
+    Field('name', type='string', length=20),
+    Field('code', type='string', length=5),
+    Field('category_id', type="reference category", ),
+    format='%(name)s',
+    migrate=migrate)
+       
+db.category.category_id.requires=IS_EMPTY_OR(IS_IN_DB(db, "category.id", "category.name"))
+ 
+# Account reference/detail (lowest level of the Chart of Accounts)
+# ie: products/services, payments, income, expenses, etc.
+db.define_table('concept',
+    Field('id', type='id'),
+    Field('code', type='string', length=20),
+    Field('name', type='string', length=250),
+    Field('categoty_id', type=db.category, default=1),
+    ##Field('line_id', type='integer'),
+    ##Field('color_id', type='integer'),
+    ##Field('size_id', type='integer'),
+    Field('quantity', type='integer', default=0),
+    Field('amount', type='double', default=0),
+    Field('tax_id', type=db.tax, default=21),
+    ##Field('supplier_id', type='integer'),
+    ##Field('customer_id', type='integer'),
+    ##Field('account_id', type='integer', default=0),
+    ##Field('unit', type='string', length=1),
+    ##Field('deseado', type='double', default=0),
+    ##Field('packaging', type='string', length=100),
+    Field('description', type='text'),
+    Field('unitary', type='boolean', default=False, comment="Unitario(precio*cantidad)"),
+    # concept types:
+    Field('sell', type='boolean', default=True, comment="Entrada (ventas)"),
+    Field('buy', type='boolean', default=False, comment="Salidas (compras)"),
+    Field('stock', type='boolean', default=False, comment="Existencias"),
+    Field('payment', type='boolean', default=False, comment="Forma de pago"),
+    Field('charge_account', type='boolean', default=False, comment="Cuenta corriente"),
+    Field('tax', type='boolean', default=False, comment="Impuestos"),
+    Field('internal', type='boolean', default=False, comment="Uso Interno"),
+    #Field('taxable', type='boolean', default=False, comment="Gravado"),
+    ##Field('cash', type='boolean', default=False),
+    ##Field('extra', type='boolean', default=False),
+    ##Field('efectivo', type='boolean', default=False),
+    ##Field('banks', type='boolean', default=False),
+    ##Field('recibo', type='string', length=50),
+    ##Field('resumen', type='string', length=50),
+    ##Field('abreviatura', type='string', length=50),
+    ##Field('cantidadstock', type='double'),
+    ##Field('coleccionid', type='integer'),
+    ##Field('minimun', type='double'),
+    ##Field('suspended', type='boolean', default=False),
+    ##Field('descuentos', type='boolean', default=False),
+    ##Field('recargos', type='boolean', default=False),
+    Field('alta', type='datetime', default=request.now),
+    Field('baja', type='datetime'),
+    format="%(name)s",
+    migrate=migrate)
