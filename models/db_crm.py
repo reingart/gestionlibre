@@ -34,7 +34,7 @@ db.define_table('deudores',
     Field('limitecc', type='double'),
     Field('limitech', type='double'),
     Field('jurisdiccionid', type='integer'),
-    Field('limitedeuda', type='decimal(10,None)'),
+    Field('limitedeuda', type='decimal(10,2)'),
     migrate=migrate)
 
 # sub-customers ("sub-accounts")
