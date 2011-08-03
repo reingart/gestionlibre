@@ -1,0 +1,1081 @@
+### Accounting
+
+# coding: utf8
+
+# Account (higher level of Chart of Accounts)
+db.define_table('accounts',
+    Field('accountid', type='id'),
+    Field('code', type='string', length=50),
+    Field('account', type='string', length=50),
+    Field('receives', type='boolean', default=False),
+    Field('groups', type='integer', default=0),
+    Field('bankid', type='integer', default=0),
+    Field('vat', type='boolean', default=False),
+    Field('grossreceipts', type='boolean', default=False), # ¿iibb?
+    Field('collections', type='boolean', default=False), # ¿percepciones?
+    Field('retentions', type='boolean', default=False), # ¿retenciones?
+    migrate=migrate)
+
+# Accounting period, fiscal year (FY):
+db.define_table('accoutingperiods',
+    Field('accountingperiodid', type='id'),
+    Field('accountingperiod', type='string', length=50),
+    Field('from', type='date'),
+    Field('to', type='date'),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# Journal entry
+db.define_table('journalentry',
+    Field('journalentryid', type='id'),
+    Field('number', type='integer', default=0),
+    Field('journalentry', type='string', length=50, comment='Description'),
+    Field('date', type='datetime'),
+    Field('valuation', type='datetime'),
+    Field('type', type='string', length=1),
+    Field('draft', type='boolean', default=False),
+    Field('accountingperiodid', type='integer', default=0),
+    migrate=migrate)
+
+# entry item (posting):
+db.define_table('accountingentry',
+    Field('accountingentryid', type='id'),
+    Field('accountingentry', type='string', length=50),
+    Field('journalentryid', type='integer', default=0),
+    Field('accountid', type='integer', default=0),
+    Field('type', type='string', length=1),
+    Field('amount', type='double'),
+    migrate=migrate)
+
+
+### Common
+
+# coding: utf8
+
+# tables used both in sales, purchases, etc.
+
+# tax category
+db.define_table('vats',
+    Field('vat', type='integer'),
+    Field('category', type='string', length=25),
+    Field('abbr', type='string', length=3),
+    Field('discriminate', type='boolean', default=False),
+    Field('documentidsales', type='integer', default=0),
+    Field('documentidpurchases', type='integer', default=0),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+
+# Al parecer en inglés contable rubro es item, pero es confuso para
+# el hispanoparlante, y más confuso si se usa otra palabra como category
+
+# product main category
+db.define_table('items',
+    Field('itemid', type='id'),
+    Field('item', type='string', length=20),
+    Field('code', type='string', length=1),
+    Field('products', type='boolean', default=False),
+    Field('units', type='boolean', default=False), # ¿unidades?
+    Field('times', type='boolean', default=False), # ¿tiempos?
+    migrate=migrate)
+
+# product sub category
+db.define_table('subitems',
+    Field('subitemid', type='integer'),
+    Field('code', type='string', length=5),
+    Field('subitem', type='string', length=50),
+    migrate=migrate)
+
+# states/province/district
+db.define_table('states',
+    Field('stateid', type='id'),
+    Field('state', type='string', length=50),
+    Field('code', type='string', length=1),
+    migrate=migrate)
+
+db.define_table('jurisdictions',
+    Field('jurisdictionid', type='integer'),
+    Field('jurisdiction', type='string', length=50),
+    primarykey=['jurisdictionid'],
+    migrate=migrate)
+
+# country?
+db.define_table('country',
+    Field('countryid', type='id'),
+    Field('country', type='string', length=50),
+    Field('code', type='string', length=4),
+    migrate=migrate)
+
+# city?
+db.define_table('city',
+    Field('cityid', type='id'),
+    Field('city', type='string', length=50),
+    Field('code', type='string', length=4),
+    migrate=migrate)
+
+# Address?
+db.define_table('address',
+    Field('street', type='string'),
+    Field('number', type='string', length=50),
+    Field('notes', type='string', length=200), # whatever else comes here
+    Field('zipcode', type='string', length=9), # Argentina's CPA
+    migrate=migrate)
+
+### CRM
+
+# coding: utf8
+
+# Customer Relationship Management
+
+# customers/clients:
+db.define_table('customer',
+    Field('customerid', type='id', comment='Customer id'),
+    Field('code', type='string', length=5),
+    Field('customer', type='string', length=100),
+    Field('firmname', type='string', length=50, comment='Customer firm name'),
+    Field('address', type='string', length=100, comment='Postal address'),
+    Field('zipcode', type='string', length=9),
+    Field('city', type='string', length=20),
+    Field('state', type='integer', default=0),
+    Field('country', type='string', length=15),
+    Field('fax', type='string', length=20, comment='Fax'),
+    Field('telephone', type='string', length=60, comment='Telephone numbers'),
+    Field('salespersonid', type='integer', default=0),
+    Field('pricelistid', type='integer', default=0),
+    Field('tin', type='string', length=20, comment='Tax id'), # similar to Argentina's cuit
+    Field('vat', type='integer', default=0),
+    Field('termsofpaymentid', type='integer', default=0),
+    Field('invoice', type='string', length=1, comment='Invoice header type'),
+    Field('currentaccount', type='string', length=1, comment='Type of current account'),
+    Field('situationid', type='reference situations', default=1, comment='Finantial situation'),
+    Field('groupid', type='integer', default=1, comment='Group'),
+    Field('observations', type='text'),
+    Field('placeofdelivery', type='text'),
+    Field('purveyor', type='string', length=50),
+    Field('addition', type='datetime', comment='Customer starting date'),
+    Field('deletion', type='datetime', comment='Customer deletion date'),
+    Field('replica', type='boolean', default=False),
+    Field('limitecc', type='double'), # ¿?
+    Field('limitech', type='double'), # ¿?
+    Field('jurisdictionid', type='integer'),
+    Field('debtlimit', type='decimal(10,2)'),
+    migrate=migrate)
+
+# sub-customers ("sub-accounts")
+db.define_table('subcustomer',
+    Field('subcustomerid', type='integer'),
+    Field('subcustomer', type='string', length=100),
+    Field('customerid', type='integer'),
+    Field('code', type='string', length=5),
+    Field('customer', type='string', length=100),
+    Field('firmname', type='string', length=50),
+    Field('address', type='string', length=100),
+    Field('cp', type='string', length=4),
+    Field('city', type='string', length=20),
+    Field('stateid', type='integer'),
+    Field('country', type='string', length=15),
+    Field('fax', type='string', length=20),
+    Field('telephone', type='string', length=60),
+    Field('nif', type='string', length=20),
+    Field('vat', type='integer'),
+    Field('invoice', type='string', length=1),
+    Field('currentaccount', type='string', length=1),
+    Field('pricelistid', type='integer'),
+    Field('situationid', type='integer'),
+    Field('groupid', type='integer'),
+    Field('observations', type='text'),
+    Field('placeofdelivery', type='text'),
+    Field('purveyornumber', type='string', length=50),
+    Field('addition', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('replica', type='boolean'),
+    Field('limitecc', type='double'), # ¿?
+    Field('limitech', type='double'), # ¿?
+    Field('jurisdictionid', type='integer'),
+    Field('sex'),
+    Field('birth', type='date'),
+    migrate=migrate)
+
+# groups
+db.define_table('groups',
+    Field('groupid', type='id'),
+    Field('group', type='string', length=50),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# contacts
+db.define_table('contacts',
+    Field('contactid', type='id'),
+    Field('contact', type='string', length=100),
+    Field('customerid', type='integer'),
+    Field('purveyorid', type='integer'),
+    Field('sector', type='string', length=50),
+    Field('telephone', type='string', length=100),
+    Field('fax', type='string', length=100),
+    Field('email', type='string', length=100),
+    Field('schedule', type='string', length=100),
+    Field('address', type='string', length=50),
+    Field('zipcode', type='string', length=50, comment='Zip code'),
+    Field('city', type='string', length=50),
+    Field('state', type='string', length=50),
+    Field('observations', type='text'),
+    migrate=migrate)
+
+# memos messages
+db.define_table('memos',
+    Field('memoid', type='id'),
+    Field('date', type='date'),
+    Field('contactid', type='integer', default=0),
+    Field('subject', type='string', length=50),
+    Field('observations', type='text'),
+    Field('userid', type='integer', default=0),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# status (active, unactive, prospect, etc.)
+db.define_table('situations',
+    Field('situationid', type='integer'),
+    Field('situation', type='string', length=30),
+    primarykey=['situationid'],
+    migrate=migrate)
+
+# salesman
+db.define_table('salespersons',
+    Field('salespersonid', type='id'),
+    Field('salesperson', type='string', length=50),
+    Field('telephone', type='string', length=50),
+    Field('address', type='string', length=50),
+    Field('state', type='string', length=50),
+    Field('city', type='string', length=50),
+    Field('notes', type='text'),
+    migrate=migrate)
+
+
+### Fees
+
+# coding: utf8
+
+# Fees, installments, quotes
+
+db.define_table('fee',
+    Field('feeid', type='integer', default=0),
+    Field('fee', type='string', length=50),
+    Field('duedate', type='date'),
+    Field('number', type='integer', default=0),
+    Field('month', type='integer', default=0),
+    Field('year', type='integer', default=0),
+    Field('additions', type='boolean', default=False),
+    Field('code', type='string', length=50),
+    Field('cocumentid', type='integer', default=0),
+    Field('extras', type='boolean', default=False),
+    Field('ticket', type='boolean', default=False),
+    Field('separate', type='boolean', default=False),
+    Field('from', type='date'),
+    Field('to', type='date'),
+    migrate=migrate)
+
+db.define_table('installments',
+    Field('installmentid', type='id'),
+    Field('customerid', type='integer', default=-1),
+    Field('purveyorid', type='integer', default=-1, comment='Wich purveyor to pay to'),
+    Field('subcustomerid', type='integer', default=0),
+    Field('feeid', type='integer', default=0),
+    Field('net', type='double', comment='Net amount'),
+    Field('discount', type='double'),
+    Field('paid', type='double'),
+    Field('fees', type='integer', default=0, comment='number of fees'),
+    Field('interests', type='double', default=0, comment='Transferred interests'),
+    Field('latepayment', type='double', default=0, comment='Late payment fees'),
+    Field('monthlyamount', type='double'),
+    Field('paidfees', type='integer', default=0),
+    Field('from', type='integer', default=0, comment='feeid'),
+    Field('to', type='integer', default=0, comment='feeid'),
+    Field('start', type='datetime'),
+    Field('firstdue', type='datetime', comment='x days of month'),
+    Field('seconddue', type='datetime', comment='y days of month'),
+    Field('observations', type='string', length=50),
+    Field('canceled', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    Field('collected', type='double'),
+    migrate=migrate)
+
+db.define_table('fees',
+    Field('installmentid', type='integer', default=0),
+    Field('feeid', type='integer', default=0),
+    Field('amount', type='double'),
+    Field('surcharge', type='double'),
+    Field('discount', type='double'),
+    Field('paid', type='double'),
+    Field('duedate', type='datetime'),
+    Field('entry', type='integer', default=0),
+    Field('exit', type='integer', default=0),
+    Field('canceled', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    Field('collected', type='double'),
+    Field('extra', type='boolean', default=False),
+    migrate=migrate)
+
+### Financials
+
+# coding: utf8
+
+# cash management
+
+# funds types (available, imprest/fixed/office fund):
+db.define_table('funds',
+    Field('fundid', type='id'),
+    Field('fund', type='string', length=50),
+    Field('type', type='integer', default=0),
+    Field('upperlimit', type='decimal(10,2)', default=0),
+    Field('balance', type='decimal(10,2)', default=0),
+    Field('closed', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('checks', type='boolean', default=False),
+    Field('conceptid', type='integer'),
+    Field('accountid', type='integer'),
+    migrate=migrate)
+
+# banks
+db.define_table('banks',
+    Field('bankid', type='integer', default=0),
+    Field('id', type='integer'),
+    Field('bank', type='string', length=250),
+    Field('checkid', type='integer', default=0),
+    Field('conceptid', type='integer', default=0),
+    primarykey=['bankid'],
+    migrate=migrate)
+
+# bank reconciliation
+db.define_table('reconciliation',
+    Field('reconciliationid', type='id'),
+    Field('conceptid', type='integer'),
+    Field('date', type='date'),
+    Field('amount', type='decimal(10,2)'),
+    Field('activityid', type='integer'), # ¿movimiento?
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('detail', type='text'),
+    migrate=migrate)
+
+# no se tradujo
+
+# cash balance
+db.define_table('cashbalance',
+    Field('cashbalanceid', type='id'),
+    Field('date', type='date'),
+    Field('balance', type='decimal(10,2)', default=0),
+    Field('canceled', type='boolean', default=False), # ¿anulado?
+    Field('balanced', type='boolean', default=False),
+    Field('prints', type='integer', default=0),
+    Field('operationid1', type='integer', default=0),
+    Field('operationid2', type='integer', default=0),
+    Field('pages', type='integer', default=0),
+    Field('cash', type='integer', default=0),
+    Field('fundid', type='integer', default=0),
+    migrate=migrate)
+
+# payment terms
+db.define_table('paymentterms',
+    Field('paymenttermid', type='integer', default=0),
+    Field('paymentterm', type='string', length=50),
+    Field('days', type='integer', default=0),
+    Field('days2', type='integer', default=0),
+    Field('days3', type='integer', default=0),
+    Field('canceled', type='boolean', default=False),
+    Field('conceptid', type='integer', default=0),
+    Field('currentaccount', type='boolean', default=False),
+    primarykey=['paymenttermid'],
+    migrate=migrate)
+
+# payment methods
+db.define_table('paymentmethods',
+    Field('paymentmethodid', type='id'),
+    Field('paymentmethod', type='string', length=50),
+    Field('conceptid', type='integer', default=0),
+    Field('coefficient1', type='double', default=0),
+    Field('coefficient2', type='double', default=0),
+    Field('coefficient3', type='double', default=0),
+    Field('coefficient4', type='double', default=0),
+    Field('coefficient5', type='double', default=0),
+    Field('coefficient6', type='double', default=0),
+    Field('coefficient7', type='double', default=0),
+    Field('coefficient8', type='double', default=0),
+    Field('coefficient9', type='double', default=0),
+    Field('coefficient10', type='double', default=0),
+    Field('coefficient11', type='double', default=0),
+    Field('coefficient12', type='double', default=0),
+    Field('coefficient13', type='double'),
+    Field('coefficient14', type='double'),
+    Field('coefficient16', type='double'),
+    Field('coefficient17', type='double'),
+    Field('coefficient18', type='double'),
+    Field('coefficient19', type='double'),
+    Field('coefficient20', type='double'),
+    Field('coefficient21', type='double'),
+    Field('coefficient22', type='double'),
+    Field('coefficient23', type='double'),
+    Field('coefficient24', type='double'),
+    Field('fee1', type='integer'),
+    Field('fee2', type='integer'),
+    Field('fee3', type='integer'),
+    Field('fee4', type='integer'),
+    Field('fee5', type='integer'),
+    Field('fee6', type='integer'),
+    Field('fee7', type='integer'),
+    Field('fee8', type='integer'),
+    Field('fee9', type='integer'),
+    Field('fee10', type='integer'),
+    Field('fee11', type='integer'),
+    Field('fee12', type='integer'),
+    Field('fee13', type='integer'),
+    Field('fee14', type='integer'),
+    Field('fee15', type='integer'),
+    Field('fee16', type='integer'),
+    Field('fee17', type='integer'),
+    Field('fee18', type='integer'),
+    Field('fee19', type='integer'),
+    Field('fee20', type='integer'),
+    Field('fee21', type='integer'),
+    Field('fee22', type='integer'),
+    Field('fee23', type='integer'),
+    Field('fee24', type='integer'),
+    Field('days1', type='integer'),
+    Field('days2', type='integer'),
+    Field('days3', type='integer'),
+    Field('days4', type='integer'),
+    Field('days5', type='integer'),
+    Field('days6', type='integer'),
+    Field('days7', type='integer'),
+    Field('days8', type='integer'),
+    Field('days9', type='integer'),
+    Field('days10', type='integer'),
+    Field('days11', type='integer'),
+    Field('days12', type='integer'),
+    Field('days13', type='integer'),
+    Field('days14', type='integer'),
+    Field('days15', type='integer'),
+    Field('days16', type='integer'),
+    Field('days17', type='integer'),
+    Field('days18', type='integer'),
+    Field('days19', type='integer'),
+    Field('days20', type='integer'),
+    Field('days21', type='integer'),
+    Field('days22', type='integer'),
+    Field('days23', type='integer'),
+    Field('days24', type='integer'),
+    Field('expenditure1', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure2', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure3', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure4', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure5', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure6', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure7', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure8', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure9', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure10', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure11', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure12', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure13', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure14', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure15', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure16', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure17', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure18', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure19', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure20', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure21', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure22', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure23', type='decimal(10,2)'), # ¿gasto?
+    Field('expenditure24', type='decimal(10,2)'), # ¿gasto?
+    migrate=migrate)
+
+# cost center
+db.define_table('costcenters',
+    Field('costcenterid', type='integer', default=0),
+    Field('costcenter', type='string', length=25),
+    Field('addintion', type='datetime'),
+    Field('deletion', type='datetime'),
+    migrate=migrate)
+
+# checkbook
+db.define_table('checkbooks',
+    Field('checkbookid', type='id'),
+    Field('checkbook', type='string', length=50),
+    Field('accountid', type='integer'),
+    Field('conceptid', type='integer'),
+    Field('from', type='integer', default=0),
+    Field('to', type='integer', default=0),
+    Field('next', type='integer', default=0),
+    migrate=migrate)
+
+# check
+db.define_table('check',
+    Field('checkid', type='id'),
+    Field('customerid', type='integer'),
+    Field('purveyorid', type='integer'),
+    Field('number', type='string', length=50),
+    Field('bankid', type='integer'),
+    Field('amount', type='double'),
+    Field('addition', type='datetime'),
+    Field('duedate', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('paid', type='datetime'),
+    Field('exchanged', type='boolean', default=False),
+    Field('bouncer', type='boolean', default=False),
+    Field('operationid', type='integer'),
+    Field('id1', type='integer'),
+    Field('exit', type='integer'),
+    Field('rejection', type='integer'),
+    Field('conceptid', type='integer'),
+    Field('detail', type='string', length=50),
+    Field('bd', type='integer'),
+    Field('own', type='boolean', default=False),
+    Field('balance', type='double'),
+    migrate=migrate)
+
+# credit card coupons
+db.define_table('creditcardcoupons',
+    Field('couponid', type='id'),
+    Field('conceptid', type='reference conceptos'),
+    Field('number', type='string', length=20),
+    Field('lot', type='string', length=20),
+    Field('fees', type='integer'),
+    Field('amount', type='double'),
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('duedate', type='date'),
+    Field('presentation', type='date'),
+    Field('payment', type='date'),
+    Field('activityid', type='integer'), # ¿movimiento?
+    migrate=migrate)
+
+### HR
+
+# coding: utf8
+
+# Human Resources management
+
+db.define_table('staff',
+    Field('staffid', type='double'),
+    Field('name', type='string', length=40),
+    Field('addres', type='string', length=40),
+    Field('city', type='string', length=50),
+    Field('zipcode', type='string', length=4),
+    Field('state', type='string', length=50),
+    Field('telephone', type='string', length=12),
+    Field('birth', type='datetime'),
+    Field('ssn', type='string', length=15), # (Argentina's DNI)
+    Field('nationality', type='string', length=50),
+    Field('itin', type='string', length=13), # ¿cuil?
+    Field('sex', type='string', length=1),
+    Field('maritalstatus', type='string', length=1),
+    Field('addition', type='datetime'),
+    Field('deletion', type='datetime'),
+    primarykey=['staffid'],
+    migrate=migrate)
+
+db.define_table('plants',
+    Field('plantid', type='id'),
+    Field('plant', type='string', length=250),
+    migrate=migrate)
+
+db.define_table('department',
+    Field('departmentid', type='id'),
+    Field('department', type='string', length=200),
+    migrate=migrate)
+
+db.define_table('unions',
+    Field('unionid', type='id'),
+    Field('union', type='string', length=50),
+    Field('description', type='string', length=50),
+    Field('percentage', type='integer', default=0, comment='Personal percentage for the union'),
+    Field('patronal', type='integer', default=0, comment='Employer percentage for the union'),
+    Field('voluntary', type='integer', default=0, comment='Voluntary contribution'),
+    migrate=migrate)
+
+db.define_table('files',
+    Field('fileid', type='id'),
+    Field('staffid', type='integer', default=0),
+    Field('extrahours', type='double'),
+    Field('presenteesm', type='double', comment='Presenteesm amount'), # ¿presentismo?
+    Field('gobermentincrease', type='double', comment='salary extra by statal dispositions (divided by months)'),
+    Field('sickdays', type='integer', default=0, comment='Number of sick days'),
+    Field('presenteesmdiscount', type='double'),
+    Field('failure', type='double', comment='Failure discount'),
+    Field('contributiondiscount', type='double'),
+    Field('seniority', type='double'),
+    Field('perdiem', type='double', comment='Per diem amount'),
+    Field('profitpercentage', type='double'),
+    Field('schooling', type='integer', default=0, comment='Schooling help: number of children'),
+    Field('allowance', type='integer', default=0, comment='Number of children for annual allowance'),
+    Field('paidvacation', type='double'),
+    Field('halfbonus', type='double', comment='Importe del Medio Aguinaldo'),
+    Field('prenatal', type='integer', default=0),
+    Field('categoryaid', type='integer', default=0),
+    Field('healthcareid', type='integer', default=0),
+    Field('unionid', type='integer', default=0),
+    Field('pensionid', type='integer', default=0, comment='(pension id)'),
+    Field('costcenterid', type='integer', default=0),
+    Field('entry', type='datetime'),
+    Field('exit', type='datetime'),
+    Field('salary', type='double', comment='Base salary (monthly)'),
+    Field('seniorityyears', type='integer'),
+    Field('spouse', type='boolean', default=False),
+    Field('senioritymonths', type='integer'),
+    Field('largefamily', type='boolean', default=False),
+    Field('department', type='string', length=50),
+    Field('code', type='string', length=20),
+    Field('departmentid', type='integer', default=1),
+    Field('roleid', type='integer', default=1),
+    Field('plantid', type='reference plantas', default=1),
+    migrate=migrate)
+
+db.define_table('payrolls',
+    Field('payrollid', type='id'),
+    Field('payroll', type='string', length=50, comment='Type and period'),
+    Field('type', type='string', length=1),
+    Field('halfbonus', type='boolean', default=False),
+    Field('vacations', type='boolean', default=False),
+    Field('from', type='datetime'),
+    Field('to', type='datetime'),
+    migrate=migrate)
+
+db.define_table('news',
+    Field('newid', type='id'),
+    Field('fileid', type='integer'),
+    Field('conceptid', type='integer'),
+    Field('datum', type='double', default=0),
+    Field('payrollid', type='integer', default=0),
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    migrate=migrate)
+
+db.define_table('healthcares',
+    Field('healthcareid', type='double'),
+    Field('healthcare', type='string', length=30),
+    Field('description', type='string', length=10),
+    Field('percentage', type='integer', default=0, comment='Contribution percentage'),
+    Field('patronal', type='integer', default=0, comment='Patronal contribution'),
+    Field('voluntary', type='integer', default=0, comment='Voluntary contribution'),
+    Field('adherent', type='integer', default=0, comment='Aporte por Adherente'),
+    primarykey=['healthcareid'],
+    migrate=migrate)
+
+db.define_table('pensions',
+    Field('pensionid', type='id'),
+    Field('pension', type='string', length=50),
+    Field('percentage', type='double', comment='Personal contribution'),
+    Field('contribution', type='integer', default=0, comment='Employer contribution'),
+    Field('socialservices', type='integer', default=0), # Argentina: law number 19032
+    migrate=migrate)
+
+db.define_table('roles',
+    Field('roleid', type='id'),
+    Field('role', type='string', length=200),
+    migrate=migrate)
+
+db.define_table('categories',
+    Field('categoryid', type='double'),
+    Field('category', type='string', length=30),
+    Field('salary', type='double'),
+    Field('hourly', type='double'),
+    Field('type', type='string', length=1),
+    Field('journalized', type='boolean', default=False),
+    Field('agreement', type='boolean', default=False),
+    Field('addition', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('agreementid', type='reference convenios'),
+    Field('plantid', type='reference plantas'),
+    migrate=migrate)
+
+db.define_table('column',
+    Field('columnid', type='id'),
+    Field('column', type='string', length=50),
+    Field('abbr', type='string', length=50),
+    Field('order', type='integer', default=0),
+    Field('receipt', type='boolean', default=False),
+    Field('remunerative', type='boolean', default=False),
+    Field('operation', type='string', length=1), # ¿operación?
+    migrate=migrate)
+
+db.define_table('relatives',
+    Field('relativeid', type='id'),
+    Field('name', type='string', length=100),
+    Field('staffid', type='integer', comment='employee'),
+    Field('kinship', type='string', length=1),
+    Field('itin', type='string', length=13),
+    Field('allowance', type='boolean', default=False),
+    Field('disabled', type='boolean', default=False),
+    Field('schooling', type='boolean', default=False),
+    Field('nationality', type='string', length=15),
+    Field('birth', type='datetime', comment='Fec.Nac.'),
+    Field('maritalstatus', type='string', length=1, comment='marital status'),
+    Field('address', type='string', length=25),
+    migrate=migrate)
+
+db.define_table('formulas',
+    Field('formulaid', type='id'),
+    Field('name', type='string', length=50),
+    Field('formula', type='text'),
+    Field('quantity', type='text'),
+    Field('amount', type='double'),
+    Field('datum', type='double'),
+    Field('format', type='string', length=1),
+    Field('text', type='text'),
+    migrate=migrate)
+
+
+db.define_table('salaries',
+    Field('salaryid', type='id'),
+    Field('costcenterid', type='integer'),
+    Field('categoryid', type='integer'),
+    Field('fileid', type='integer'),
+    Field('conceptid', type='reference conceptos'),
+    Field('liquidationid', type='integer'),
+    Field('type', type='string', length=1),
+    Field('halfbonus', type='boolean', default=False),
+    Field('quantity', type='double'),
+    Field('amount', type='double'),
+    Field('from', type='datetime'),
+    Field('to', type='datetime'),
+    Field('fixed', type='boolean', default=False),
+    Field('liquidated', type='boolean', default=False),
+    Field('format', type='string', length=1),
+    Field('text', type='string', length=255),
+    Field('agreementid', type='reference agreements'),
+    Field('departmentid', type='reference departments'),
+    Field('roleid', type='reference roles'),
+    Field('plantid', type='reference plants'),
+    migrate=migrate)
+
+### Operations
+
+# coding: utf8
+
+# Source Document types/categories (grouping ledgers)
+# ie.: Invoice, Receipt, Purchase Order, pay stub, voucher, proof., etc.
+db.define_table('documents',
+    Field('documentid', type='integer', default=0),
+    Field('document', type='string', length=50),
+    Field('pointofsaleid', type='integer', default=0),
+    Field('abbr', type='string', length=3),
+    Field('type', type='string', length=1),
+    Field('tax', type='boolean', default=False), # ¿gravar?
+    Field('discriminate', type='boolean', default=False),
+    Field('branch', type='integer', default=0), # ¿sucursal?
+    Field('number', type='integer', default=0),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
+    Field('fiscal', type='boolean', default=False),
+    Field('stock', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('cash', type='boolean', default=False), # ¿al contado?
+    Field('debit', type='boolean', default=False),
+    Field('credit', type='boolean', default=False),
+    Field('invoices', type='boolean', default=False),
+    Field('receipts', type='boolean', default=False),
+    Field('packingslips', type='boolean', default=False), # ¿Remitos?
+    Field('orders', type='boolean', default=False),
+    Field('countable', type='boolean', default=False),
+    Field('printer', type='string', length=50),
+    Field('lines', type='integer', default=0),
+    Field('fundid', type='integer', default=0),
+    Field('replicate', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    Field('notes', type='text'),
+    Field('observations', type='text'),
+    Field('descriptions', type='text'),
+    Field('id', type='string', length=50),
+    Field('cashbox', type='boolean', default=False), # ¿caja?
+    Field('books', type='boolean', default=False), # ¿reservas?
+    Field('formid', type='integer'),
+    Field('budget', type='boolean', default=False),
+    Field('downpayment', type='boolean', default=False),
+    Field('copies', type='integer'),
+    Field('confirmprinting', type='boolean', default=False),
+    Field('internal', type='boolean', default=False),
+    Field('invert', type='boolean', default=False),
+    Field('continuous', type='boolean', default=False),
+    Field('multiplepages', type='boolean', default=False),
+    Field('preprinted', type='boolean', default=False),
+    primarykey=['documentid'],
+    migrate=migrate)
+
+# Account reference/detail (lowest level of the Chart of Accounts)
+# ie: products/services, payments, income, expenses, etc.
+db.define_table('concepts',
+    Field('conceptid', type='integer', default=0),
+    Field('code', type='string', length=20),
+    Field('concept', type='string', length=250),
+    Field('itemid', type='integer', default=0),
+    Field('subitemid', type='integer'),
+    Field('familyid', type='integer'),
+    Field('colorid', type='integer'),
+    Field('sizeid', type='integer'),
+    Field('quantity', type='integer', default=0),
+    Field('amount', type='double', default=0),
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('vataliquot', type='double', default=21),
+    Field('purveyorid', type='integer'),
+    Field('customerid', type='integer'),
+    Field('accountid', type='integer', default=0),
+    Field('measure', type='string', length=1),
+    Field('desired', type='double', default=0), # ¿deseado?
+    Field('presentation', type='string', length=100),
+    Field('description', type='text'),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
+    Field('taxed', type='boolean', default=False), #  ¿gravado?
+    Field('stock', type='boolean', default=False),
+    Field('unitary', type='boolean', default=False),
+    Field('internal', type='boolean', default=False),
+    Field('paymentmethod', type='boolean', default=False),
+    Field('tax', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('cashbox', type='boolean', default=False),
+    Field('extra', type='boolean', default=False),
+    Field('cash', type='boolean', default=False),
+    Field('banks', type='boolean', default=False),
+    Field('receipt', type='string', length=50),
+    Field('statement', type='string', length=50), # ¿resumen?
+    Field('abbr', type='string', length=50),
+    Field('stockquantity', type='double'),
+    Field('replica', type='boolean', default=False),
+    Field('collectionid', type='integer'),
+    Field('floor', type='double'), # ¿mínimo?
+    Field('suspended', type='boolean', default=False),
+    Field('discounts', type='boolean', default=False),
+    Field('surcharges', type='boolean', default=False),
+    primarykey=['conceptid'],
+    migrate=migrate)
+
+# Source Document (transactions records)
+db.define_table('transactions',
+    Field('transactionid', type='id'),
+    Field('customerid', type='reference deudores', default=0),
+    Field('purveyorid', type='reference acreedores', default=0),
+    Field('detail', type='string', length=60, comment='Observaciones'),
+    Field('paymenttermid', type='integer', comment='Formas de Pago'),
+    Field('term', type='string', length=50),
+    Field('amount', type='double'),
+    Field('balance', type='double'),
+    Field('date', type='datetime'),
+    Field('issue', type='datetime'),
+    Field('documentid', type='integer', default=0),
+    Field('branch', type='integer', default=0),
+    Field('number', type='integer', default=0),
+    Field('duedate', type='datetime'),
+    Field('type', type='string', length=1),
+    Field('cancelled', type='boolean', default=False, comment='False if deferred payment (df), True if paid with cash, ch (check) or current account'),
+    Field('processed', type='boolean', default=False),
+    Field('voided', type='boolean', default=False), # ¿anulado?
+    Field('fundid', type='integer', default=0),
+    Field('costcenterid', type='integer', default=0),
+    Field('module', type='integer', default=0, comment='Referenced table'),
+    Field('id', type='integer', default=0, comment='Apunta al PED / FAC / REM'),
+    Field('observations', type='string', length=50),
+    Field('description', type='string', length=10),
+    Field('cancellation', type='boolean', default=False),
+    Field('avoidance', type='boolean', default=False), # ¿anulación?
+    Field('fileid', type='integer'), # ¿legajo?
+    Field('liquidationid', type='integer'),
+    Field('userid', type='integer'),
+    Field('hour', type='datetime'),
+    Field('replica', type='boolean', default=False),
+    Field('replicated', type='datetime'),
+    Field('subcustomerid', type='integer'),
+    Field('salespersonid', type='integer'),
+    Field('printed', type='boolean', default=False),
+    Field('jurisdictionid', type='integer'),
+    migrate=migrate)
+
+# Source document items (posting)
+# ie.: "traditional" line items
+db.define_table('activities',
+    Field('transactionid', type='integer', default=0),
+    Field('operationid', type='integer', default=0),
+    Field('conceptid', type='integer', default=0),
+    Field('priceid', type='integer', default=0), # ¿tarifaid?
+    Field('quantity', type='double', default=0),
+        Field('amount', type='decimal(10,2)', default=0),
+    Field('discriminated', type='integer', default=0),
+    Field('table', type='integer', default=0),
+    Field('id', type='integer', default=0),
+    Field('detail', type='string', length=255),
+    Field('value', type='decimal(10,2)', default=0),
+    Field('start', type='date'),
+    Field('replica', type='boolean', default=False),
+    Field('discount', type='decimal(10,2)'),
+    Field('surcharge', type='decimal(10,2)'),
+    primarykey=['activityid'],
+    migrate=migrate)
+
+# pricelists
+db.define_table('pricelists',
+    Field('pricelistid', type='integer', default=0),
+    Field('pricelist', type='string', length=50),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    primarykey=['pricelistid'],
+    migrate=migrate)
+
+# price "engine":
+db.define_table('prices',
+    Field('priceid', type='id'),
+    Field('conceptid', type='integer'),
+    Field('itemid', type='integer'),
+    Field('salespersonid', type='integer'),
+    Field('customerid', type='integer'),
+    Field('purveyorid', type='integer'),
+    Field('groupid', type='integer'),
+    Field('situationid', type='integer'),
+    Field('fundid', type='integer'),
+    Field('feeid', type='integer', comment='Tipo de Envase'), # ¿tarifaid?
+    Field('paymentmethodid', type='integer', comment='Method of payment'),
+    Field('documentid', type='integer', comment='Document type'),
+    Field('pricelistid', type='integer'),
+    Field('taxed', type='boolean', default=False),
+    Field('vat', type='integer'),
+    Field('type', type='string', length=1),
+    Field('value', type='double', default=0, comment='Insert a value to calculate'),
+    Field('calculate', type='string', length=1),
+    Field('operation', type='string', length=50),
+    Field('source', type='string', length=1, comment='Field on wich operations will be performed'),
+    Field('condition', type='string', length=2),
+    Field('quantity1', type='double'),
+    Field('quantity2', type='double'),
+    Field('discriminate', type='boolean', default=False),
+    Field('id', type='integer'),
+    Field('priority', type='integer'),
+    Field('formula', type='text'),
+    Field('vataliquot', type='double'),
+    migrate=migrate)
+
+# points of sale
+db.define_table('poinstofsale',
+    Field('pointofsaleid', type='id'),
+    Field('pointofsale', type='string', length=50),
+    Field('branch', type='integer', default=0),
+    Field('number', type='integer', default=0),
+    Field('pac', type='string', length=50), # Argentina's CAI (invoice printing official number)
+    Field('duedate', type='datetime'),
+    migrate=migrate)
+
+
+### SCM
+
+# coding: utf8
+
+# Supply Chain Management
+
+# suppliers/providers:
+db.define_table('purveyor',
+    Field('purveyorid', type='id'),
+    Field('code', type='string', length=5),
+    Field('purveyor', type='string', length=50),
+    Field('firmname', type='string', length=50),
+    Field('vat', type='integer', default=0), # Argentina's IVA
+    Field('tin', type='string', length=20), # Argentina's CUIT
+    Field('address', type='string', length=30),
+    Field('zipcode', type='string', length=50),
+    Field('city', type='string', length=50),
+    Field('stateid', type='integer', default=0),
+    Field('telephone', type='string', length=20),
+    Field('fax', type='string', length=50),
+    Field('situationid', type='integer', default=1),
+    Field('ssn', type='string', length=20), # ¿Argentina's DNI?
+    Field('observations', type='text'),
+    Field('itin', type='string', length=20), # ¿idividual ... Argentina's CUIL?
+    Field('identitycard', type='string', length=20),
+    Field('birth', type='datetime'),
+    Field('nationality', type='string', length=35),
+    Field('replica', type='boolean', default=False),
+    Field('jurisdictionid', type='integer'),
+    migrate=migrate)
+
+# collections
+db.define_table('collections',
+    Field('collectionid', type='id'),
+    Field('collection', type='string', length=50),
+    Field('from', type='date'),
+    Field('to', type='date'),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# colours (products 1st variant)
+db.define_table('colours',
+    Field('colorid', type='id'),
+    Field('code', type='string', length=10),
+    Field('color', type='string', length=50),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# sizes (products 2nd variant ) ie. clothes...
+db.define_table('size',
+    Field('sizeid', type='id'),
+    Field('size', type='string', length=50),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# warehouses
+db.define_table('warehouses',
+    Field('warehouseid', type='id'),
+    Field('warehouse', type='string', length=50),
+    Field('address', type='string', length=50),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# product structure (bill of materials)
+db.define_table('productstructure',
+    Field('productstructureid', type='id'),
+    Field('conceptid', type='integer'),
+    Field('id', type='integer'),
+    Field('quantity', type='double', default=0),
+    Field('scrap', type='double', default=0),
+    Field('replica', type='boolean', default=False),
+    migrate=migrate)
+
+# product families/lines grouping
+db.define_table('families',
+    Field('familyid', type='integer', default=0),
+    Field('code', type='string', length=15),
+    Field('family', type='string', length=50),
+    Field('collectionid', type='integer'),
+    Field('amount', type='decimal(10,2)', default=0),
+    Field('entry', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
+    Field('itemid', type='integer'),
+    Field('subitemid', type='integer'),
+    Field('purveyorid', type='integer'),
+    Field('suspended', type='boolean', default=False),
+    primarykey=['familyid'],
+    migrate=migrate)
+
+# rates / fare / tariff
+db.define_table('rates',
+    Field('rateid', type='id'),
+    Field('rate', type='string', length=50),
+    Field('type', type='string', length=1),
+    Field('capacity', type='double'),
+    Field('measure', type='string', length=1),
+    Field('stock', type='integer', default=0),
+    Field('index', type='double', default=0),
+    Field('price', type='double', default=0),
+    migrate=migrate)
+
+# products inventory (in/out)
+db.define_table('stock',
+    Field('stockid', type='id'),
+    Field('conceptid', type='integer', default=0),
+    Field('date', type='datetime', comment='Date of entry'),
+    Field('reserved', type='boolean', default=False),
+    Field('warehouseid', type='integer', default=0),
+    Field('id', type='integer'),
+    Field('accumulated', type='boolean', default=False),
+    Field('stock', type='double', default=0),
+    migrate=migrate)
+
+

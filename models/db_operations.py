@@ -1,212 +1,252 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
+
+migrate = True
 
 # Source Document types/categories (grouping ledgers)
-# ie.: Invoice, Receipt, Purchase Order, pay stub, voucher, proof., etc.
-db.define_table('comprobantes',
-    Field('comprobanteid', type='integer', default=0),
-    Field('comprobante', type='string', length=50),
-    Field('talonarioid', type='integer', default=0),
-    Field('abr', type='string', length=3),
-    Field('tipo', type='string', length=1),
-    Field('gravar', type='boolean', default=False),
-    Field('discriminar', type='boolean', default=False),
-    Field('sucursal', type='integer', default=0),
-    Field('numero', type='integer', default=0),
-    Field('entrada', type='boolean', default=False),
-    Field('salida', type='boolean', default=False),
+# ie.: Invoice, Receipt, Purchase Order, pay stub, voucher, proof., etc. "Comprobantes"
+db.define_table('documenttype',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('pointofsale','reference pointofsale'), # reference
+    Field('abbr', type='string', length=3),
+    Field('type', type='string', length=1), # reference?
+    Field('tax', type='boolean', default=False), # ¿gravar?
+    Field('discriminate', type='boolean', default=False),
+    Field('branch', 'reference branch'), # ¿sucursal? # reference
+    Field('number', type='integer', default=0),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
     Field('fiscal', type='boolean', default=False),
     Field('stock', type='boolean', default=False),
-    Field('ctasctes', type='boolean', default=False),
-    Field('contado', type='boolean', default=False),
-    Field('debitos', type='boolean', default=False),
-    Field('creditos', type='boolean', default=False),
-    Field('facturas', type='boolean', default=False),
-    Field('recibos', type='boolean', default=False),
-    Field('remitos', type='boolean', default=False),
-    Field('pedidos', type='boolean', default=False),
-    Field('contable', type='boolean', default=False),
-    Field('impresora', type='string', length=50),
-    Field('lineas', type='integer', default=0),
-    Field('fondoid', type='integer', default=0),
-    Field('replicar', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('cash', type='boolean', default=False), # ¿al contado?
+    Field('debit', type='boolean', default=False),
+    Field('credit', type='boolean', default=False),
+    Field('invoices', type='boolean', default=False),
+    Field('receipts', type='boolean', default=False),
+    Field('packingslips', type='boolean', default=False), # ¿Remitos?
+    Field('orders', type='boolean', default=False),
+    Field('countable', type='boolean', default=False),
+    Field('printer', type='string', length=50), # reference?
+    Field('lines', type='integer', default=0),
+    Field('fund', 'reference fund'), # reference
+    Field('replicate', type='boolean', default=False),
+    Field('notes', type='text'),
+    Field('observations', type='text'),
+    Field('descriptions', type='text'),
+    Field('cashbox', type='boolean', default=False), # ¿caja?
+    Field('books', type='boolean', default=False), # ¿reservas?
+    Field('form', 'string'), # reference?
+    Field('budget', type='boolean', default=False),
+    Field('downpayment', type='boolean', default=False),
+    Field('copies', type='integer'),
+    Field('confirmprinting', type='boolean', default=False),
+    Field('internal', type='boolean', default=False),
+    Field('invert', type='boolean', default=False),
+    Field('continuous', type='boolean', default=False),
+    Field('multiplepages', type='boolean', default=False),
+    Field('preprinted', type='boolean', default=False),
     Field('replica', type='boolean', default=False),
-    Field('notas', type='text'),
-    Field('observaciones', type='text'),
-    Field('descripcion', type='text'),
-    Field('id', type='string', length=50),
-    Field('caja', type='boolean', default=False),
-    Field('reservas', type='boolean', default=False),
-    Field('formularioid', type='integer'),
-    Field('presupuestos', type='boolean', default=False),
-    Field('senias', type='boolean', default=False),
-    Field('copias', type='integer'),
-    Field('confirmarimpresion', type='boolean', default=False),
-    Field('interno', type='boolean', default=False),
-    Field('invertir', type='boolean', default=False),
-    Field('continuo', type='boolean', default=False),
-    Field('multipleshojas', type='boolean', default=False),
-    Field('preimpreso', type='boolean', default=False),
-    primarykey=['comprobanteid'],
+    format='%(description)s',
     migrate=migrate)
 
 # Account reference/detail (lowest level of the Chart of Accounts)
 # ie: products/services, payments, income, expenses, etc.
-db.define_table('conceptos',
-    Field('conceptoid', type='integer', default=0),
-    Field('codigo', type='string', length=20),
-    Field('concepto', type='string', length=250),
-    Field('rubroid', type='integer', default=0),
-    Field('subrubroid', type='integer'),
-    Field('familiaid', type='integer'),
-    Field('colorid', type='integer'),
-    Field('talleid', type='integer'),
-    Field('cantidad', type='integer', default=0),
-    Field('importe', type='double', default=0),
-    Field('alta', type='date'),
-    Field('baja', type='date'),
-    Field('alicuotaiva', type='double', default=21),
-    Field('acreedorid', type='integer'),
-    Field('deudorid', type='integer'),
-    Field('cuentaid', type='integer', default=0),
-    Field('medida', type='string', length=1),
-    Field('deseado', type='double', default=0),
-    Field('presentacion', type='string', length=100),
-    Field('descripcion', type='text'),
-    Field('entrada', type='boolean', default=False),
-    Field('salida', type='boolean', default=False),
-    Field('gravado', type='boolean', default=False),
+db.define_table('concept',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('item', 'reference item'), # reference
+    Field('subitem', 'reference subitem'), # reference
+    Field('family', 'reference family'), # reference
+    Field('color', 'reference color'),# reference
+    Field('size', 'reference size'), # reference
+    Field('quantity', type='integer', default=0),
+    Field('amount', type='double', default=0),
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('vat'), # reference
+    Field('purveyor', 'reference purveyor'), # reference
+    Field('customer', 'reference customer'), # reference
+    Field('account', 'reference account'),# reference
+    Field('measure', type='string', length=1),
+    Field('desired', type='double', default=0), # ¿deseado?
+    Field('presentation', type='string', length=100),
+    Field('description', type='text'),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
+    Field('taxed', type='boolean', default=False), #  ¿gravado?
     Field('stock', type='boolean', default=False),
-    Field('unitario', type='boolean', default=False),
-    Field('interno', type='boolean', default=False),
-    Field('formapago', type='boolean', default=False),
-    Field('impuesto', type='boolean', default=False),
-    Field('ctasctes', type='boolean', default=False),
-    Field('caja', type='boolean', default=False),
+    Field('unitary', type='boolean', default=False),
+    Field('internal', type='boolean', default=False),
+    Field('paymentmethod', type='boolean', default=False),
+    Field('tax', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('cashbox', type='boolean', default=False),
     Field('extra', type='boolean', default=False),
-    Field('efectivo', type='boolean', default=False),
-    Field('bancos', type='boolean', default=False),
-    Field('recibo', type='string', length=50),
-    Field('resumen', type='string', length=50),
-    Field('abreviatura', type='string', length=50),
-    Field('cantidadstock', type='double'),
+    Field('cash', type='boolean', default=False),
+    Field('banks', type='boolean', default=False),
+    Field('receipt', type='string', length=50),
+    Field('statement', type='string', length=50), # ¿resumen?
+    Field('abbr', type='string', length=50),
+    Field('stockquantity', type='double'),
+    Field('collection', 'reference collection'), # reference
+    Field('floor', type='double'), # ¿mínimo?
+    Field('suspended', type='boolean', default=False),
+    Field('discounts', type='boolean', default=False),
+    Field('surcharges', type='boolean', default=False),
     Field('replica', type='boolean', default=False),
-    Field('coleccionid', type='integer'),
-    Field('minimo', type='double'),
-    Field('suspendido', type='boolean', default=False),
-    Field('descuentos', type='boolean', default=False),
-    Field('recargos', type='boolean', default=False),
-    primarykey=['conceptoid'],
+    format='%(description)s',
     migrate=migrate)
 
 # Source Document (transactions records)
-db.define_table('operaciones',
-    Field('operacionid', type='id'),
-    Field('deudorid', type='reference deudores', default=0),
-    Field('acreedorid', type='reference acreedores', default=0),
-    Field('detalle', type='string', length=60, comment='Observaciones'),
-    Field('condicionpagoid', type='integer', comment='Formas de Pago'),
-    Field('condicion', type='string', length=50),
-    Field('importe', type='double'),
-    Field('saldo', type='double'),
-    Field('fecha', type='datetime'),
-    Field('emision', type='datetime'),
-    Field('comprobanteid', type='integer', default=0),
-    Field('sucursal', type='integer', default=0),
-    Field('numero', type='integer', default=0),
-    Field('vencimiento', type='datetime'),
-    Field('tipo', type='string', length=1),
-    Field('cancelado', type='boolean', default=False, comment='Falso si pago diferido (df), verdadero si pago con efectivo (ef), ch o cc'),
-    Field('procesado', type='boolean', default=False),
-    Field('anulado', type='boolean', default=False),
-    Field('fondoid', type='integer', default=0),
-    Field('centrocostoid', type='integer', default=0),
-    Field('modulo', type='integer', default=0, comment='Tabla relacionada'),
-    Field('id', type='integer', default=0, comment='Apunta al PED / FAC / REM'),
-    Field('observaciones', type='string', length=50),
-    Field('descripcion', type='string', length=10),
-    Field('cancelacion', type='boolean', default=False),
-    Field('anulacion', type='boolean', default=False),
-    Field('legajoid', type='integer'),
-    Field('liquidacionid', type='integer'),
-    Field('usuarioid', type='integer'),
-    Field('hora', type='datetime'),
+db.define_table('transactionrecord',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('customer', 'reference customer'), # reference
+    Field('purveyor', 'reference purveyor'), # reference
+    Field('detail', type='string', length=60, comment='Observations'),
+    Field('paymentterms', type='integer', comment='Terms of payment'), # reference
+    Field('term', type='string', length=50),
+    Field('amount', type='double'),
+    Field('balance', type='double'),
+    Field('date', type='datetime'),
+    Field('issue', type='datetime'),
+    Field('documenttype', 'reference documenttype', comment='Points to order / invoice / packingslips'), # reference
+    Field('branch', 'reference branch'), # reference
+    Field('number', type='integer', default=0),
+    Field('duedate', type='datetime'),
+    Field('type', type='string', length=1), # reference?
+    Field('canceled', type='boolean', default=False, comment='False if deferred payment (df), True if paid with cash, ch (check) or current account'),
+    Field('processed', type='boolean', default=False),
+    Field('voided', type='boolean', default=False), # ¿anulado?
+    Field('fund', 'reference fund'), # reference
+    Field('costcenter', 'reference costcenter'), # reference
+    Field('module', type='integer', default=0, comment='Referenced table'), # reference?
+    Field('observations', type='string', length=50),
+    Field('cancellation', type='boolean', default=False),
+    Field('avoidance', type='boolean', default=False), # ¿anulación?
+    Field('file', 'reference file'), # ¿legajo? # reference
+    Field('liquidation', 'reference liquidation'), # reference
+    Field('user', 'reference auth_user'), # reference
+    Field('hour', type='datetime'),
+    Field('replicated', type='datetime'),
+    Field('subcustomer', 'reference subcustomer'), # reference
+    Field('salesperson', 'reference salesperson'), # reference
+    Field('printed', type='boolean', default=False),
+    Field('jurisdiction', 'reference jurisdiction'), # reference
     Field('replica', type='boolean', default=False),
-    Field('replicado', type='datetime'),
-    Field('subdeudorid', type='integer'),
-    Field('vendedorid', type='integer'),
-    Field('impreso', type='boolean', default=False),
-    Field('jurisdiccionid', type='integer'),
+    format='%(description)s',
     migrate=migrate)
 
 # Source document items (posting)
 # ie.: "traditional" line items
-db.define_table('movimientos',
-    Field('movimientoid', type='integer', default=0),
-    Field('operacionid', type='integer', default=0),
-    Field('conceptoid', type='integer', default=0),
-    Field('tarifaid', type='integer', default=0),
-    Field('cantidad', type='double', default=0),
-        Field('importe', type='decimal(10,2)', default=0),
-    Field('discriminado', type='integer', default=0),
-    Field('tabla', type='integer', default=0),
-    Field('id', type='integer', default=0),
-    Field('detalle', type='string', length=255),
-    Field('valor', type='decimal(10,2)', default=0),
-    Field('inicio', type='date'),
+db.define_table('activity',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('transactionrecord', 'reference transactionrecord'), # reference
+    Field('concept', 'reference concept' ), # reference
+    Field('price', 'reference price'), # ¿tarifaid? # reference
+    Field('quantity', type='double', default=0),
+    Field('amount', type='decimal(10,2)', default=0),
+    Field('discriminated', 'reference vat'), # changed (was integer i.e. 21)
+    Field('tablenumber', type='integer', default=0), # reference?
+    Field('detail', type='string', length=255),
+    Field('value', type='decimal(10,2)', default=0),
+    Field('start', type='date'),
+    Field('discount', type='decimal(10,2)'),
+    Field('surcharge', type='decimal(10,2)'),
     Field('replica', type='boolean', default=False),
-    Field('descuento', type='decimal(10,2)'),
-    Field('recargo', type='decimal(10,2)'),
-    primarykey=['movimientoid'],
+    format='%(description)s',
     migrate=migrate)
 
 # pricelists
-db.define_table('listasprecio',
-    Field('listaprecioid', type='integer', default=0),
-    Field('listaprecio', type='string', length=50),
-    Field('entrada', type='boolean', default=False),
-    Field('salida', type='boolean', default=False),
+db.define_table('pricelist',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('entry', type='boolean', default=False),
+    Field('exit', type='boolean', default=False),
     Field('replica', type='boolean', default=False),
-    primarykey=['listaprecioid'],
+    format='%(description)s',
     migrate=migrate)
-    
+
 # price "engine":
-db.define_table('precios',
-    Field('precioid', type='id'),
-    Field('conceptoid', type='integer'),
-    Field('rubroid', type='integer'),
-    Field('vendedorid', type='integer'),
-    Field('deudorid', type='integer'),
-    Field('acreedorid', type='integer'),
-    Field('grupoid', type='integer'),
-    Field('situacionid', type='integer'),
-    Field('fondoid', type='integer'),
-    Field('tarifaid', type='integer', comment='Tipo de Envase'),
-    Field('pagoid', type='integer', comment='Forma de Pago'),
-    Field('comprobanteid', type='integer', comment='Tipo de Comprobante'),
-    Field('listaprecioid', type='integer'),
-    Field('gravado', type='boolean', default=False),
-    Field('iva', type='integer'),
-    Field('tipo', type='string', length=1),
-    Field('valor', type='double', default=0, comment='Ingrese el valor a calcular'),
-    Field('calcular', type='string', length=1),
-    Field('operacion', type='string', length=50),
-    Field('origen', type='string', length=1, comment='Campo sobre el cual se efectuaran las operaciones'),
-    Field('condicion', type='string', length=2),
-    Field('cantidad1', type='double'),
-    Field('cantidad2', type='double'),
-    Field('discriminar', type='boolean', default=False),
-    Field('id', type='integer'),
-    Field('prioridad', type='integer'),
+db.define_table('price',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('concept', 'reference concept'), # reference
+    Field('item', 'reference item'), # reference
+    Field('salesperson', 'reference salesperson'), # reference
+    Field('customer', 'reference customer'), # reference
+    Field('purveyor', 'reference purveyor'), # reference
+    Field('contactgroup', 'reference contactgroup'), # reference
+    Field('situation', 'reference situation'), # reference
+    Field('fund', 'reference fund'), # reference
+    Field('rate', 'reference rate', comment='Container type'), # ¿tarifaid? # reference
+    Field('paymentmethod', 'reference paymentmethod', comment='Method of payment'), # reference
+    Field('documenttype', 'reference documenttype', comment='Document type'), # reference
+    Field('pricelist', 'reference pricelist'), # reference
+    Field('taxed', type='boolean', default=False),
+    Field('vat', 'reference vat'), # reference
+    Field('type', type='string', length=1), # reference?
+    Field('value', type='double', default=0, comment='Insert a value to calculate'),
+    Field('calculate', type='string', length=1),
+    Field('operation'), # reference
+    Field('source', type='string', length=1, comment='Field on wich operations will be performed'),
+    Field('condition', type='string', length=2),
+    Field('quantity1', type='double'),
+    Field('quantity2', type='double'),
+    Field('discriminate', type='boolean', default=False),
+    Field('priority', type='integer'),
     Field('formula', type='text'),
-    Field('alicuotaiva', type='double'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',
     migrate=migrate)
 
 # points of sale
-db.define_table('talonarios',
-    Field('talonarioid', type='id'),
-    Field('talonario', type='string', length=50),
-    Field('sucursal', type='integer', default=0),
-    Field('numero', type='integer', default=0),
-    Field('cai', type='string', length=50),
-    Field('vencimiento', type='datetime'),
+db.define_table('pointofsale',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('branch', 'reference branch'), # reference
+    Field('number', type='integer', default=0),
+    Field('pac', type='string', length=50), # Argentina's CAI (invoice printing official number)
+    Field('duedate', type='datetime'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',
     migrate=migrate)
+
+db.define_table('branch',
+    Field('name'),
+    Field('code', default=new_custom_serial_code),
+    Field('description'),
+    Field('address'),
+    Field('city', 'reference city'),
+    Field('state', 'reference state'),
+    Field('country', 'reference country'),
+    format='%(name)s',
+    migrate=migrate)
+
+# the documents "Comprobante"
+db.define_table('document',
+    Field('code', unique=True, default=new_custom_serial_code),
+    Field('description'),
+    Field('documenttype', 'reference documenttype'),
+    Field('branch', 'reference branch'),
+    Field('pointofsale', 'reference pointofsale'),
+    Field('time', 'datetime', default=request.now),
+    Field('notes', 'text'),
+    Field('replica', 'boolean', default=True),    
+    format = '%(description)s',
+    migrate=migrate)
+    
+# The detail of a document
+db.define_table('documentelement',
+    Field('code', unique=True, default=new_custom_serial_code),
+    Field('description'),
+    Field('concept', 'reference concept'),
+    Field('product', 'reference product'),
+    Field('transactionrecord', 'reference transactionrecord'),
+    Field('quantity', 'double'),
+    Field('replica', 'boolean', default=True),
+    format = '%(description)s',
+    migrate=migrate,
+    )

@@ -1,229 +1,206 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
+
+migrate = True
 
 # cash management
 
-# funds types (available, imprest/fixed/office fund):
-db.define_table('fondos',
-    Field('fondoid', type='id'),
-    Field('fondo', type='string', length=50),
-    Field('tipo', type='integer', default=0),
-    Field('tope', type='decimal(10,2)', default=0),
-    Field('saldo', type='decimal(10,2)', default=0),
-    Field('cerrado', type='boolean', default=False),
-    Field('ctasctes', type='boolean', default=False),
-    Field('cheques', type='boolean', default=False),
-    Field('conceptoid', type='integer'),
-    Field('cuentaid', type='integer'),
+# funds types (available, imprest/fixed/office fund): "Fondos"
+db.define_table('fund',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('type', type='integer', default=0), # reference?
+    Field('upperlimit', type='decimal(10,2)', default=0),
+    Field('balance', type='decimal(10,2)', default=0),
+    Field('closed', type='boolean', default=False),
+    Field('currentaccount', type='boolean', default=False),
+    Field('bankchecks', type='boolean', default=False),
+    Field('concept', 'reference concept'),  # reference
+    Field('account', 'reference account'), # reference
+    Field('replica', type='boolean', default=False),    
+    format='%(description)s',    
     migrate=migrate)
 
-# banks
-db.define_table('bancos',
-    Field('bancoid', type='integer', default=0),
-    Field('id', type='integer'),
-    Field('banco', type='string', length=250),
-    Field('chequeid', type='integer', default=0),
-    Field('conceptoid1', type='integer', default=0),
-    primarykey=['bancoid'],
+# banks "Bancos"
+db.define_table('bank',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('description', type='string', length=250),
+    Field('bankcheck', 'reference bankcheck'),  # reference
+    Field('concept', 'reference concept'),  # reference
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
-# bank reconciliation
-db.define_table('conciliaciones',
-    Field('conciliacionid', type='id'),
-    Field('conceptoid', type='integer'),
-    Field('fecha', type='date'),
-    Field('importe', type='decimal(10,2)'),
-    Field('movimientoid', type='integer'),
-    Field('alta', type='date'),
-    Field('baja', type='date'),
-    Field('detalle', type='text'),
+# bank reconciliation "Conciliación"
+db.define_table('reconciliation',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('concept', 'reference concept'),  # reference
+    Field('date', type='date'),
+    Field('amount', type='decimal(10,2)'),
+    Field('activity', type='integer'), # ¿movimiento?  # reference
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('detail', type='text'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
-# cash balance
-db.define_table('cierres',
-    Field('cierreid', type='id'),
-    Field('fecha', type='date'),
-    Field('saldo', type='decimal(10,2)', default=0),
-    Field('anulado', type='boolean', default=False),
-    Field('balanceado', type='boolean', default=False),
-    Field('impresiones', type='integer', default=0),
-    Field('operacionid1', type='integer', default=0),
-    Field('operacionid2', type='integer', default=0),
-    Field('paginas', type='integer', default=0),
-    Field('caja', type='integer', default=0),
-    Field('fondoid', type='integer', default=0),
+# cash balance "Cierres"
+db.define_table('cashbalance',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('date', type='date'),
+    Field('balance', type='decimal(10,2)', default=0),
+    Field('canceled', type='boolean', default=False), # ¿anulado?
+    Field('balanced', type='boolean', default=False),
+    Field('prints', type='integer', default=0),
+    Field('transactionrecord1', 'reference transactionrecord'),  # reference
+    Field('transactionrecord2', 'reference transactionrecord'),  # reference
+    Field('pages', type='integer', default=0),
+    Field('cash', type='integer', default=0),
+    Field('fund', 'reference fund'),  # reference
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
-# payment terms
-db.define_table('condicionespago',
-    Field('condicionpagoid', type='integer', default=0),
-    Field('condicionpago', type='string', length=50),
-    Field('dias', type='integer', default=0),
-    Field('dias2', type='integer', default=0),
-    Field('dias3', type='integer', default=0),
-    Field('cancelado', type='boolean', default=False),
-    Field('conceptoid', type='integer', default=0),
-    Field('ctasctes', type='boolean', default=False),
-    primarykey=['condicionpagoid'],
+# payment terms "CondicionesPago"
+db.define_table('paymentterms',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('canceled', type='boolean', default=False),
+    Field('concept', 'reference concept'),  # reference
+    Field('currentaccount', type='boolean', default=False),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
+    migrate=migrate)
+
+# paymenttermsdays
+db.define_table('paymenttermsdays', 
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('paymentterms', 'reference paymentterms'),
+    Field('days', 'integer'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # payment methods
-db.define_table('formaspago',
-    Field('formapagoid', type='id'),
-    Field('formapago', type='string', length=50),
-    Field('conceptoid', type='integer', default=0),
-    Field('coeficiente1', type='double', default=0),
-    Field('coeficiente2', type='double', default=0),
-    Field('coeficiente3', type='double', default=0),
-    Field('coeficiente4', type='double', default=0),
-    Field('coeficiente5', type='double', default=0),
-    Field('coeficiente6', type='double', default=0),
-    Field('coeficiente7', type='double', default=0),
-    Field('coeficiente8', type='double', default=0),
-    Field('coeficiente9', type='double', default=0),
-    Field('coeficiente10', type='double', default=0),
-    Field('coeficiente11', type='double', default=0),
-    Field('coeficiente12', type='double', default=0),
-    Field('coeficiente13', type='double'),
-    Field('coeficiente14', type='double'),
-    Field('coeficiente16', type='double'),
-    Field('coeficiente17', type='double'),
-    Field('coeficiente18', type='double'),
-    Field('coeficiente19', type='double'),
-    Field('coeficiente20', type='double'),
-    Field('coeficiente21', type='double'),
-    Field('coeficiente22', type='double'),
-    Field('coeficiente23', type='double'),
-    Field('coeficiente24', type='double'),
-    Field('cuota1', type='integer'),
-    Field('cuota2', type='integer'),
-    Field('cuota3', type='integer'),
-    Field('cuota4', type='integer'),
-    Field('cuota5', type='integer'),
-    Field('cuota6', type='integer'),
-    Field('cuota7', type='integer'),
-    Field('cuota8', type='integer'),
-    Field('cuota9', type='integer'),
-    Field('cuota10', type='integer'),
-    Field('cuota11', type='integer'),
-    Field('cuota12', type='integer'),
-    Field('cuota13', type='integer'),
-    Field('cuota14', type='integer'),
-    Field('cuota15', type='integer'),
-    Field('cuota16', type='integer'),
-    Field('cuota17', type='integer'),
-    Field('cuota18', type='integer'),
-    Field('cuota19', type='integer'),
-    Field('cuota20', type='integer'),
-    Field('cuota21', type='integer'),
-    Field('cuota22', type='integer'),
-    Field('cuota23', type='integer'),
-    Field('cuota24', type='integer'),
-    Field('dias1', type='integer'),
-    Field('dias2', type='integer'),
-    Field('dias3', type='integer'),
-    Field('dias4', type='integer'),
-    Field('dias5', type='integer'),
-    Field('dias6', type='integer'),
-    Field('dias7', type='integer'),
-    Field('dias8', type='integer'),
-    Field('dias9', type='integer'),
-    Field('dias10', type='integer'),
-    Field('dias11', type='integer'),
-    Field('dias12', type='integer'),
-    Field('dias13', type='integer'),
-    Field('dias14', type='integer'),
-    Field('dias15', type='integer'),
-    Field('dias16', type='integer'),
-    Field('dias17', type='integer'),
-    Field('dias18', type='integer'),
-    Field('dias19', type='integer'),
-    Field('dias20', type='integer'),
-    Field('dias21', type='integer'),
-    Field('dias22', type='integer'),
-    Field('dias23', type='integer'),
-    Field('dias24', type='integer'),
-    Field('gastos1', type='decimal(10,2)'),
-    Field('gastos2', type='decimal(10,2)'),
-    Field('gastos3', type='decimal(10,2)'),
-    Field('gastos4', type='decimal(10,2)'),
-    Field('gastos5', type='decimal(10,2)'),
-    Field('gastos6', type='decimal(10,2)'),
-    Field('gastos7', type='decimal(10,2)'),
-    Field('gastos8', type='decimal(10,2)'),
-    Field('gastos9', type='decimal(10,2)'),
-    Field('gastos10', type='decimal(10,2)'),
-    Field('gastos11', type='decimal(10,2)'),
-    Field('gastos12', type='decimal(10,2)'),
-    Field('gastos13', type='decimal(10,2)'),
-    Field('gastos14', type='decimal(10,2)'),
-    Field('gastos15', type='decimal(10,2)'),
-    Field('gastos16', type='decimal(10,2)'),
-    Field('gastos17', type='decimal(10,2)'),
-    Field('gastos18', type='decimal(10,2)'),
-    Field('gastos19', type='decimal(10,2)'),
-    Field('gastos20', type='decimal(10,2)'),
-    Field('gastos21', type='decimal(10,2)'),
-    Field('gastos22', type='decimal(10,2)'),
-    Field('gastos23', type='decimal(10,2)'),
-    Field('gastos24', type='decimal(10,2)'),
+db.define_table('paymentmethod',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('concept', 'reference concept'),  # reference
+    Field('coupons', 'integer'),    
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
-    
+
+# paymentmethodcoefficient
+db.define_table('paymentmethodcoefficient',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('paymentmethod', 'reference paymentmethod'),
+    Field('coefficient', type='double'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
+    migrate=migrate)
+
+# paymentmethodquota
+db.define_table('paymentmethodquota',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('paymentmethod', 'reference paymentmethod'),
+    Field('quota', type='integer'),  # reference?
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
+    migrate=migrate)
+
+# paymentmethoddays
+db.define_table('paymentmethoddays',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('paymentmethod', 'reference paymentmethod'),
+    Field('days', type='integer'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
+    migrate=migrate)
+
+# paymentmethodexpenditure
+db.define_table('paymentmethodexpenditure',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('paymentmethod', 'reference paymentmethod'),
+    Field('expenditure', type='decimal(10,2)'), # ¿gasto?
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
+    migrate=migrate)
+
 # cost center
-db.define_table('centroscosto',
-    Field('centrocostoid', type='integer', default=0),
-    Field('centrocosto', type='string', length=25),
-    Field('alta', type='datetime'),
-    Field('baja', type='datetime'),
+db.define_table('costcenter',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('addition', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # checkbook
-db.define_table('chequeras',
-    Field('chequeraid', type='id'),
-    Field('chequera', type='string', length=50),
-    Field('cuentaid', type='integer'),
-    Field('conceptoid', type='integer'),
-    Field('desde', type='integer', default=0),
-    Field('hasta', type='integer', default=0),
-    Field('proximo', type='integer', default=0),
+db.define_table('checkbook',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('account', 'reference account'),  # reference
+    Field('concept', 'reference concept'),  # reference
+    Field('fromdate', type='datetime', default=0),
+    Field('todate', type='datetime', default=0),
+    Field('next', type='integer', default=0),  # reference?
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
     
 # check
-db.define_table('valores',
-    Field('valorid', type='id'),
-    Field('deudorid', type='integer'),
-    Field('acreedorid', type='integer'),
-    Field('numero', type='string', length=50),
-    Field('bancoid', type='integer'),
-    Field('importe', type='double'),
-    Field('alta', type='datetime'),
-    Field('vencimiento', type='datetime'),
-    Field('baja', type='datetime'),
-    Field('pagado', type='datetime'),
-    Field('canjeado', type='boolean', default=False),
-    Field('rechazado', type='boolean', default=False),
-    Field('operacionid', type='integer'),
+db.define_table('bankcheck',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('customer', 'reference customer'), # reference
+    Field('purveyor', 'reference purveyor'), # reference
+    Field('number', type='string', length=50),
+    Field('bank', 'reference bank'),  # reference
+    Field('amount', type='double'),
+    Field('addition', type='datetime'),
+    Field('duedate', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('paid', type='datetime'),
+    Field('exchanged', type='boolean', default=False),
+    Field('bouncer', type='boolean', default=False),
+    Field('transactionrecord', 'reference transactionrecord'),  # reference
     Field('id1', type='integer'),
-    Field('salida', type='integer'),
-    Field('rechazo', type='integer'),
-    Field('conceptoid', type='integer'),
-    Field('detalle', type='string', length=50),
+    Field('exit', type='integer'),
+    Field('rejection', type='integer'),
+    Field('concept', 'reference concept'),  # reference
+    Field('detail', type='string', length=50),
     Field('bd', type='integer'),
-    Field('propio', type='boolean', default=False),
-    Field('saldo', type='double'),
+    Field('own', type='boolean', default=False),
+    Field('balance', type='double'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # credit card coupons
-db.define_table('cupones',
-    Field('cuponid', type='id'),
-    Field('conceptoid', type='reference conceptos'),
-    Field('numero', type='string', length=20),
-    Field('lote', type='string', length=20),
-    Field('cuotas', type='integer'),
-    Field('importe', type='double'),
-    Field('alta', type='date'),
-    Field('baja', type='date'),
-    Field('vencimiento', type='date'),
-    Field('presentacion', type='date'),
-    Field('pago', type='date'),
-    Field('movimientoid', type='integer'),
+db.define_table('creditcardcoupon',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('concept', 'reference concept'),  # reference
+    Field('number', type='string', length=20),
+    Field('lot', type='string', length=20),
+    Field('fees', type='integer'),
+    Field('amount', type='double'),
+    Field('addition', type='date'),
+    Field('deletion', type='date'),
+    Field('duedate', type='date'),
+    Field('presentation', type='date'),
+    Field('payment', type='date'),
+    Field('activity', 'reference activity'), # ¿movimiento?  # reference
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)

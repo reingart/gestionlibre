@@ -1,126 +1,153 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
+
+migrate = True
 
 # Customer Relationship Management
 
-# customers/clients:
-db.define_table('deudores',
-    Field('deudorid', type='id', comment='C\xc3\xb3digo de Cliente'),
-    Field('codigo', type='string', length=5),
-    Field('deudor', type='string', length=100),
-    Field('razon', type='string', length=50, comment='Raz\xc3\xb3n Social, Nombre o Denominaci\xc3\xb3n'),
-    Field('direccion', type='string', length=100, comment='Direcci\xc3\xb3n Postal'),
-    Field('cp', type='string', length=4),
-    Field('localidad', type='string', length=20),
-    Field('provinciaid', type='integer', default=0),
-    Field('pais', type='string', length=15),
-    Field('fax', type='string', length=20, comment='N\xc3\xbamero de Tel\xc3\xa9fono para Fax'),
-    Field('telefono', type='string', length=60, comment='Tel\xc3\xa9fonos'),
-    Field('vendedorid', type='integer', default=0),
-    Field('listaprecioid', type='integer', default=0),
-    Field('cuit', type='string', length=20, comment='N\xc3\xbamero de CUIT'),
-    Field('iva', type='integer', default=0),
-    Field('condicionpagoid', type='integer', default=0),
-    Field('cliente', type='integer', default=0),
-    Field('factura', type='string', length=1, comment='Letra de Factura que se Emitir\xc3\xa1'),
-    Field('ctacte', type='string', length=1, comment='Tipo de Cuenta Corriente'),
-    Field('situacionid', type='reference situaciones', default=1, comment='Estado'),
-    Field('grupoid', type='integer', default=1, comment='Grupo'),
-    Field('observaciones', type='text'),
-    Field('lugarentrega', type='text'),
-    Field('nroproveedor', type='string', length=50),
-    Field('alta', type='datetime', comment='Fecha de Alta/Inicio'),
-    Field('baja', type='datetime', comment='Fecha de Baja'),
+# customers/clients: "Deudores"
+db.define_table('customer',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('contact', 'reference contact'),
+    Field('firmname', type='string', length=50, comment='Customer firm name'),
+    Field('address', type='string', length=100, comment='Postal address'),
+    Field('zipcode', type='string', length=9),
+    Field('city', type='string', length=20),
+    Field('state', type='integer', default=0),
+    Field('country', type='string', length=15),
+    Field('fax', type='string', length=20, comment='Fax'),
+    Field('telephone', type='string', length=60, comment='Telephone numbers'),
+    Field('salesperson', 'reference salesperson'), # reference
+    Field('pricelist', 'reference pricelist'), # reference
+    Field('tin', type='string', length=20, comment='Tax id'), # similar to Argentina's cuit
+    Field('vat', 'reference vat'),  # reference
+    Field('paymentterms', 'reference paymentterms'),  # reference
+    Field('invoice', type='string', length=1, comment='Invoice header type'),
+    Field('currentaccount', type='string', length=1, comment='Type of current account'),  # reference?
+    Field('situation', 'reference situation', comment='Finantial situation'),  # reference
+    Field('contactgroup', 'reference contactgroup', comment='Contact Group'),  # reference
+    Field('observations', type='text'),
+    Field('placeofdelivery', type='text'),
+    Field('purveyor', 'reference purveyor'), # reference
+    Field('addition', type='datetime', comment='Customer starting date'),
+    Field('deletion', type='datetime', comment='Customer deletion date'),
     Field('replica', type='boolean', default=False),
-    Field('limitecc', type='double'),
-    Field('limitech', type='double'),
-    Field('jurisdiccionid', type='integer'),
-    Field('limitedeuda', type='decimal(10,2)'),
+    Field('currentaccountlimit', type='double'),
+    Field('checklimit', type='double'),
+    Field('jurisdiction', 'reference jurisdiction'),  # reference
+    Field('debtlimit', type='decimal(10,2)'),
+    Field('ssn'), # Argentina's DNI
+    Field('transport'),
+    Field('replica', type='boolean', default=False),
+    format='%(firmname)s',        
     migrate=migrate)
 
-# sub-customers ("sub-accounts")
-db.define_table('subdeudores',
-    Field('subdeudorid', type='integer'),
-    Field('subdeudor', type='string', length=100),
-    Field('deudorid', type='integer'),
-    Field('codigo', type='string', length=5),
-    Field('deudor', type='string', length=100),
-    Field('razon', type='string', length=50),
-    Field('direccion', type='string', length=100),
-    Field('cp', type='string', length=4),
-    Field('localidad', type='string', length=20),
-    Field('provinciaid', type='integer'),
-    Field('pais', type='string', length=15),
+# sub-customers ("sub-accounts") "CLIENTES"
+db.define_table('subcustomer',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('customer', 'reference customer'),  # reference
+    Field('firmname', type='string', length=50),
+    Field('address', type='string', length=100),
+    Field('zipcode', type='string', length=4),
+    Field('city', 'reference city'),
+    Field('state', 'reference state'),  # reference
+    Field('country', 'reference country'), # reference
     Field('fax', type='string', length=20),
-    Field('telefono', type='string', length=60),
-    Field('cuit', type='string', length=20),
-    Field('iva', type='integer'),
-    Field('factura', type='string', length=1),
-    Field('ctacte', type='string', length=1),
-    Field('listaprecioid', type='integer'),
-    Field('situacionid', type='integer'),
-    Field('grupoid', type='integer'),
-    Field('observaciones', type='text'),
-    Field('lugarentrega', type='text'),
-    Field('nroproveedor', type='string', length=50),
-    Field('alta', type='datetime'),
-    Field('baja', type='datetime'),
-    Field('replica', type='boolean'),
-    Field('limitecc', type='double'),
-    Field('limitech', type='double'),
-    Field('jurisdiccionid', type='integer'),
-    Field('sexo', ),
-    Field('nacimiento', type='date'),
+    Field('telephone', type='string', length=60),
+    Field('tin', type='string', length=20),
+    Field('vat', type='integer'),  # reference
+    Field('invoice', type='string', length=1),
+    Field('currentaccount', type='string', length=1),  # reference?
+    Field('pricelist', type='integer'),  # reference
+    Field('situation', 'reference situation'),  # reference
+    Field('contactgroup', 'reference contactgroup'),  # reference
+    Field('observations', type='text'),
+    Field('placeofdelivery', type='text'),
+    Field('purveyor', 'reference purveyor'),  # reference
+    Field('addition', type='datetime'),
+    Field('deletion', type='datetime'),
+    Field('currentaccountlimit', type='double'),
+    Field('checklimit', type='double'),
+    Field('jurisdiction', 'reference jurisdiction'), # reference
+    Field('sex', type="string", length=1),
+    Field('birth', type='date'),
+    Field('balance', type='double'),
+    Field('replica', type='boolean', default=False),
+    format='%(firmname)s',        
     migrate=migrate)
 
 # groups
-db.define_table('grupos',
-    Field('grupoid', type='id'),
-    Field('grupo', type='string', length=50),
+db.define_table('contactgroup',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
     Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # contacts
-db.define_table('contactos',
-    Field('contactoid', type='id'),
-    Field('contacto', type='string', length=100),
-    Field('deudorid', type='integer'),
-    Field('acreedorid', type='integer'),
-    Field('sector', type='string', length=50),
-    Field('telefono', type='string', length=100),
+db.define_table('contact',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('customer', 'reference customer'),  # reference
+    Field('purveyor', 'reference purveyor'),  # reference
+    Field('tin'),  # Argentina's CUIT
+    Field('department', type='string', length=50),  # reference?
+    Field('telephone', type='string', length=100),
     Field('fax', type='string', length=100),
     Field('email', type='string', length=100),
-    Field('horario', type='string', length=100),
-    Field('direccion', type='string', length=50),
-    Field('cp', type='string', length=50, comment='C\xc3\xb3digo Postal'),
-    Field('localidad', type='string', length=50),
-    Field('provincia', type='string', length=50),
-    Field('observaciones', type='text'),
+    Field('schedule', type='string', length=100),
+    Field('address', type='string', length=50),
+    Field('zipcode', type='string', length=50, comment='Zip code'),
+    Field('city', 'reference city'),  # reference
+    Field('state', 'reference state'),  # reference
+    Field('observations', type='text'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
     
 # memos messages
-db.define_table('memos',
-    Field('memoid', type='id'),
-    Field('fecha', type='date'),
-    Field('contactoid', type='integer', default=0),
-    Field('motivo', type='string', length=50),
-    Field('observaciones', type='text'),
-    Field('usuarioid', type='integer', default=0),
+db.define_table('memo',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('date', type='date'),
+    Field('contact', 'reference contact'),  # reference
+    Field('subject', type='string', length=50),
+    Field('observations', type='text'),
+    Field('user', 'reference auth_user'),  # reference
     Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # status (active, unactive, prospect, etc.)
-db.define_table('situaciones',
-    Field('situacionid', type='integer'),
-    Field('situacion', type='string', length=30),
-    primarykey=['situacionid'],
+db.define_table('situation',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
 
 # salesman
-db.define_table('vendedores',
-    Field('vendedorid', type='id'),
-    Field('vendedor', type='string', length=50),
-    Field('telefono', type='string', length=50),
-    Field('domicilio', type='string', length=50),
-    Field('provincia', type='string', length=50),
-    Field('notas', type='text'),
+db.define_table('salesperson',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('staff', 'reference staff'),
+    Field('commission', type='double'),
+    Field('telephone', type='string', length=50),
+    Field('address', type='string', length=50),
+    Field('state', 'reference state'),  # reference
+    Field('city', 'reference city'),  # reference
+    Field('notes', type='text'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',        
     migrate=migrate)
+
+# many to many referenced user-contact table
+db.define_table('contactuser',
+    Field('code', unique = True, default=new_custom_serial_code),
+    Field('description'),
+    Field('user', 'reference auth_user'),
+    Field('contact', 'reference contact'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',
+    )

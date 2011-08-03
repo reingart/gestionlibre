@@ -1,0 +1,6 @@
+{{extend 'layout.html'}}
+<h2>Post-registration form</h2>
+{{=LABEL("Please insert your firm's tin")}}
+{{=form}}
+{{=H3("Valid firm tins")}}
+{{=UL([LI("%s %s" % (el.tin, el.description)) for el in db(db.contact).select() if el.tin])}}
