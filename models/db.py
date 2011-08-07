@@ -13,6 +13,8 @@ if request.env.web2py_runtime_gae:            # if running on Google App Engine
     # session.connect(request, response, db = MEMDB(Client()))
 else:                                         # else use a normal relational database
     db = DAL('sqlite://storage.sqlite')       # if not, use SQLite or other DB
+    # db = DAL('postgres://web2py:web2py@localhost:5432/gestionlibre') # local postgresql connection
+    # TODO: adapt db model for dal pg auto-sql (unordered tables raise pg errors)
 
 ## if no need for session
 # session.forget()
@@ -76,7 +78,9 @@ crud.settings.auth = None                      # =auth to enforce authorization 
 ## >>> for row in rows: print row.id, row.myfield
 #########################################################################
 
+###################
 # GestionLibre data
+###################
 
 # custom serial code creation. Include plain text between \t tab chars: "A\tThis is not randomized\tBN"
 # A: alphabetical, B: alphanumeric, N: integers between zero and nine, \t [text] \t: normal text bounds
@@ -110,15 +114,15 @@ def new_custom_serial_code(structure=CUSTOM_SERIAL_CODE_STRUCTURE):
 
     while True:
         the_code = generate_custom_serial_code(structure)
-        if db(db.customserialcode.serialcode == the_code).select().first() == None:
+        if len(db(db.custom_serial_code.code == the_code).select()) <= 0:
             # store serial code in db
-            db.customserialcode.insert(serialcode = the_code)
+            db.custom_serial_code.insert(code = the_code)
             return the_code
 
     return None
 
 def custom_post_login(arg):
-    contacts_per_user = len(db(db.contactuser.user == auth.user_id).select())
+    contacts_per_user = len(db(db.contact_user.user_id == auth.user_id).select())
     if contacts_per_user < 1:
         redirect(URL(c="registration", f="post_register_specify_firm"))        
 
@@ -127,8 +131,5 @@ def custom_post_register(arg):
 
 auth.settings.register_onaccept = custom_post_register
 auth.settings.login_onaccept = custom_post_login
-
-# debugging entries
-db.define_table('debugging',Field('msg'))
 
 migrate = True

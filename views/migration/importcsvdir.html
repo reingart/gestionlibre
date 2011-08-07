@@ -1,6 +1,13 @@
 {{extend 'layout.html'}}
 {{=H3(T("Import legacy tables"))}}
+<p>Input file <em>"name.csv"</em> is a csv file located at the private app's folder</p>
+<p>CSV tables are read from the folder private/legacy_tables</p>
 {{=form}}
 <p>DB records inserted: {{=records}}</p>
 <p>DB insert errors: {{=errors}}</p>
 <p>DB empty data cells: {{=voidstrings}}</p>
+
+{{if error_list:}}
+<h3>Errors</h3>
+{{=UL([LI(error.msg) for error in error_list])}}
+{{pass}}

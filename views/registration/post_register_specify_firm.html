@@ -3,4 +3,4 @@
 {{=LABEL("Please insert your firm's tin")}}
 {{=form}}
 {{=H3("Valid firm tins")}}
-{{=UL([LI("%s %s" % (el.tin, el.description)) for el in db(db.contact).select() if el.tin])}}
+{{=UL([LI("%s %s" % (el.tax_identification, el.description)) for el in db(db.contact).select() if el.tax_identification])}}
