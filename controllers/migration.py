@@ -121,14 +121,6 @@ def importcsvdir():
         return dict(records = result[0], errors = result[1], voidstrings = result[2], form = form, error_list = error_list)
     return dict(records = "", errors = "", voidstrings = "", form = form, error_list = error_list)
 
-# propietary firm database fieldname transfer
-# TODO: Store at firm's own archive space
-# (not used)
-def convertglagodict():
-    glago = local_import("glago")
-    glago.dict_to_csv(glago.LEGACY_TABLES)
-    return dict(ok="Conversion finished")
-
 # Old database field conversion pattern (from csv to dict)
 # Input csv file: a list of records in the following syntax:
 # tablearchive.csv, db_table_name, db_field_name, csv_record_field_index,

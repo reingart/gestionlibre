@@ -3,12 +3,12 @@
 """ Setup for development db """
 
 def setup():
-    registros = 0
-    tablas = 0
+    records = 0
+    tables = 0
+    # TODO: General app setup
 
-    # datos para completar tablas
     accounts = list()
-    return dict(message="Listo", registros = registros, tablas = tablas)
+    return dict(message="Done", records = records, tables = tables)
 
 def options():
     the_options = db(db.option).select()

@@ -20,8 +20,7 @@ def index():
     now = datetime.datetime.now()
     delta = datetime.timedelta(7)
     time_limit = now - delta
-    # get operations set from last week
-    # customer_orders_set = db((db.operation.customer == customer.customer_id) & (db.operation.posted >= time_limit))
+
     q = db.operation.document_id == db.document.document_id
     q &= db.document.orders == True
     preset = db(q)

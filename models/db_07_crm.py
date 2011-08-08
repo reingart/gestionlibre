@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-
 migrate = True
-
-# Customer Relationship Management
 
 # customers/clients: "Deudores"
 db.define_table('customer',
     Field('customer_id', 'id'),
     Field('code', unique = True),
     Field('description'),
-    Field('contact_id', 'reference contact'),
+    Field('contact'),
     Field('legal_name', type='string', length=50, comment='Customer firm name'),
     Field('address', type='string', length=100, comment='Postal address'),
     Field('zip_code', type='string', length=9),
@@ -78,84 +75,4 @@ db.define_table('subcustomer',
     Field('replica', type='boolean', default=False),
     format='%(legal_name)s',
     migrate=migrate)
-
-# groups
-db.define_table('customer_group',
-    Field('customer_group_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# contacts
-db.define_table('contact',
-    Field('contact_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('customer_id', 'reference customer'),  # reference
-    Field('supplier_id', 'reference supplier'),  # reference
-    Field('tax_identification'),  # Argentina's CUIT
-    Field('department', type='string', length=50),  # reference?
-    Field('telephone', type='string', length=100),
-    Field('fax', type='string', length=100),
-    Field('email', type='string', length=100),
-    Field('schedule', type='string', length=100),
-    Field('address', type='string', length=50),
-    Field('zip_code', type='string', length=50, comment='Zip code'),
-    Field('city_id', 'reference city'),  # reference
-    Field('state_id', 'reference state'),  # reference
-    Field('observations', type='text'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# memos messages
-db.define_table('memo',
-    Field('memo_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('posted', type='date'),
-    Field('contact_id', 'reference contact'),  # reference
-    Field('subject', type='string', length=50),
-    Field('observations', type='text'),
-    Field('user_id', 'reference auth_user'),  # reference
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# status (active, unactive, prospect, etc.)
-db.define_table('situation',
-    Field('situation_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# salesman
-db.define_table('salesperson',
-    Field('salesperson_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('staff_id', 'reference staff'), # reference
-    Field('commission', type='double'),
-    Field('telephone', type='string', length=50),
-    Field('address', type='string', length=50),
-    Field('state_id', 'reference state'),  # reference
-    Field('city_id', 'reference city'),  # reference
-    Field('notes', type='text'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# many to many referenced user-contact table
-db.define_table('contact_user',
-    Field('contact_user_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('user_id', 'reference auth_user'),
-    Field('contact_id', 'reference contact'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    )
+ 

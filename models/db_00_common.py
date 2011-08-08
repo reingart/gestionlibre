@@ -3,26 +3,6 @@ migrate = True
 
 # tables used both in sales, purchases, etc.
 
-# tax category
-db.define_table('tax',
-    Field('tax_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('tax', 'boolean'), # Argentina's CUIT (yes/no)
-    Field('percentage', type='double'),
-    Field('aliquot', type='double'),
-    Field('category'), # vat type
-    Field('abbr', type='string', length=3),
-    Field('discriminate', type='boolean', default=False),
-    Field('document_sales_id', 'reference document'),  # reference
-    Field('document_purchases_id', 'reference document'),  # reference
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# Al parecer en inglés contable rubro es item, pero es confuso para
-# el hispanoparlante, y más confuso si se usa otra palabra como category
-
 # product main category
 db.define_table('category',
     Field('category_id', 'id'),
@@ -45,16 +25,6 @@ db.define_table('subcategory',
     format='%(description)s',
     migrate=migrate)
 
-# states/province/district
-db.define_table('state',
-    Field('state_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('country_id', 'reference country'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
 db.define_table('jurisdiction',
     Field('jurisdiction_id', 'id'),
     Field('code', unique = True),
@@ -68,6 +38,16 @@ db.define_table('country',
     Field('country_id', 'id'),
     Field('code', unique = True),
     Field('description'),
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',
+    migrate=migrate)
+
+# states/province/district
+db.define_table('state',
+    Field('state_id', 'id'),
+    Field('code', unique = True),
+    Field('description'),
+    Field('country_id', 'reference country'),
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
@@ -96,6 +76,24 @@ db.define_table('address',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
+
+# tax category
+db.define_table('tax',
+    Field('tax_id', 'id'),
+    Field('code', unique = True),
+    Field('description'),
+    Field('tax', 'boolean'), # Argentina's CUIT (yes/no)
+    Field('percentage', type='double'),
+    Field('aliquot', type='double'),
+    Field('category'), # vat type
+    Field('abbr', type='string', length=3),
+    Field('discriminate', type='boolean', default=False),
+    Field('document_sales', 'integer'),  # reference
+    Field('document_purchases', 'integer'),  # reference
+    Field('replica', type='boolean', default=False),
+    format='%(description)s',
+    migrate=migrate)
+
 
 # custom serial code table for validation purposes
 db.define_table('custom_serial_code',

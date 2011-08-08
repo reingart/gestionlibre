@@ -2,8 +2,6 @@
 
 migrate = True
 
-# cash management
-
 # funds types (available, imprest/fixed/office fund): "Fondos"
 db.define_table('fund',
     Field('fund_id', 'id'),
@@ -17,52 +15,6 @@ db.define_table('fund',
     Field('bank_checks', type='boolean', default=False),
     Field('concept_id', 'reference concept'),  # reference
     Field('account_id', 'reference account'), # reference
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# banks "Bancos"
-db.define_table('bank',
-    Field('bank_id', 'id'),
-    Field('code', unique = True),
-    Field('description', type='string', length=250),
-    Field('bank_check_id', 'reference bank_check'),  # reference
-    Field('concept_id', 'reference concept'),  # reference
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# bank reconciliation "Conciliación"
-db.define_table('reconciliation',
-    Field('reconciliation_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('concept_id', 'reference concept'),  # reference
-    Field('posted', type='date'),
-    Field('amount', type='decimal(10,2)'),
-    Field('movement_id', 'reference movement'), # ¿movimiento?  # reference
-    Field('addition', type='date'),
-    Field('deletion', type='date'),
-    Field('detail', type='text'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# cash balance "Cierres"
-db.define_table('cash_balance',
-    Field('cash_balance_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('posted', type='date'),
-    Field('balance', type='decimal(10,2)', default=0),
-    Field('canceled', type='boolean', default=False), # ¿anulado?
-    Field('balanced', type='boolean', default=False),
-    Field('prints', type='integer', default=0),
-    Field('operation_1_id', 'reference operation'),  # reference
-    Field('operation_2_id', 'reference operation'),  # reference
-    Field('pages', type='integer', default=0),
-    Field('cash', type='integer', default=0),
-    Field('fund_id', 'reference fund'),  # reference
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
@@ -89,7 +41,7 @@ db.define_table('payment_method',
     Field('description'),
     Field('concept_id', 'reference concept'),  # reference
     Field('coupons', 'integer'),
-    
+
     Field('coefficient_01', type='double'),
     Field('coefficient_02', type='double'),
     Field('coefficient_03', type='double'),
@@ -114,7 +66,7 @@ db.define_table('payment_method',
     Field('coefficient_22', type='double'),
     Field('coefficient_23', type='double'),
     Field('coefficient_24', type='double'),
-    
+
     Field('quota_01', type='integer'),  # reference?
     Field('quota_02', type='integer'),  # reference?
     Field('quota_03', type='integer'),  # reference?
@@ -139,7 +91,7 @@ db.define_table('payment_method',
     Field('quota_22', type='integer'),  # reference?
     Field('quota_23', type='integer'),  # reference?
     Field('quota_24', type='integer'),  # reference?
-    
+
     Field('days_01', type='integer'),
     Field('days_02', type='integer'),
     Field('days_03', type='integer'),
@@ -189,18 +141,7 @@ db.define_table('payment_method',
     Field('expenditure_22', type='decimal(10,2)'), # ¿gasto?
     Field('expenditure_23', type='decimal(10,2)'), # ¿gasto?
     Field('expenditure_24', type='decimal(10,2)'), # ¿gasto?
-    
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
 
-# cost center
-db.define_table('cost_center',
-    Field('cost_center_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('addition', type='datetime'),
-    Field('deletion', type='datetime'),
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
@@ -219,51 +160,3 @@ db.define_table('check_book',
     format='%(description)s',
     migrate=migrate)
 
-# check
-db.define_table('bank_check',
-    Field('bank_check_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('customer_id', 'reference customer'), # reference
-    Field('supplier_id', 'reference supplier'), # reference
-    Field('number', type='string', length=50),
-    Field('bank_id', 'reference bank'),  # reference
-    Field('amount', type='double'),
-    Field('addition', type='datetime'),
-    Field('due_date', type='datetime'),
-    Field('deletion', type='datetime'),
-    Field('paid', type='datetime'),
-    Field('exchanged', type='boolean', default=False),
-    Field('bouncer', type='boolean', default=False),
-    Field('operation_id', 'reference operation'),  # reference
-    Field('id_1', type='integer'),
-    Field('exit', type='integer'),
-    Field('rejection', type='integer'),
-    Field('concept_id', 'reference concept'),  # reference
-    Field('detail', type='string', length=50),
-    Field('bd', type='integer'),
-    Field('own', type='boolean', default=False),
-    Field('balance', type='double'),
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
-
-# credit card coupons
-db.define_table('credit_card_coupon',
-    Field('credit_card_coupon_id', 'id'),
-    Field('code', unique = True),
-    Field('description'),
-    Field('concept_id', 'reference concept'),  # reference
-    Field('number', type='string', length=20),
-    Field('lot', type='string', length=20),
-    Field('fees', type='integer'),
-    Field('amount', type='double'),
-    Field('addition', type='date'),
-    Field('deletion', type='date'),
-    Field('due_date', type='date'),
-    Field('presentation', type='date'),
-    Field('payment', type='date'),
-    Field('movement_id', 'reference movement'), # ¿movimiento?  # reference
-    Field('replica', type='boolean', default=False),
-    format='%(description)s',
-    migrate=migrate)
