@@ -26,17 +26,20 @@ def option():
 
 def initialize():
     message = ""
-    db(db.option).delete()
-    # For list reference/string/... values: use the "|1|2|...n|" syntax
-    options = [
-        {"name": "customer_allowed_orders", "description":"The order documents exposed to the user", "type": "list:reference document", "represent": None, "requires": None, "value": None},
-        {"name": "customer_default_order", "description":"Default order document selected", "type": "reference document", "represent": None, "requires": None, "value": None},
-        ]
-    for o in options:
-        db.option.insert(**o)
-
-    message="Done"
-    return dict(message=message, options = len(db(db.option).select()))
-
-
     
+    # general dictionary for db initial setup
+    # Incomplete
+    
+    # db data input design:
+    # records: {
+    #    "table_x": [ { "field_a": value, "field_b": value, ... }, ... { } ]
+    # }
+    
+    records = dict()
+    
+    # for each tablename in records
+    #     for each dictionary object obj in records["tablename"]:
+    #         insert unpacked obj in tablename
+    
+    message="Done"
+    return dict(message=message, records = len(records))

@@ -3,8 +3,8 @@
 migrate = True
 
 # column
-db.define_table('column',
-    Field('column_id', 'id'),
+db.define_table('payroll_column',
+    Field('payroll_column_id', 'id'),
     Field('code', unique = True),
     Field('description'),
     Field('abbr', type='string', length=50),
@@ -15,7 +15,3 @@ db.define_table('column',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
-
-
-
- 

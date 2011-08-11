@@ -8,7 +8,7 @@ db.define_table('file',
     Field('staff_id', 'reference staff'),  # reference
     Field('extra_hours', type='double'),
     Field('presenteesm', type='double', comment='Presenteesm amount'), # ¿presentismo?
-    Field('goberment_increase', type='double', comment='salary extra by statal dispositions (divided by months)'),
+    Field('government_increase', type='double', comment='salary extra by statal dispositions (divided by months)'),
     Field('sick_days', type='integer', default=0, comment='Number of sick days'),
     Field('presenteesm_discount', type='double'),
     Field('failure', type='double', comment='Failure discount'),

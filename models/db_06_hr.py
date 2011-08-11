@@ -3,8 +3,8 @@
 migrate = True
 
 # new "Noticia"
-db.define_table('new',
-    Field('new_id', 'id'),
+db.define_table('payroll_new',
+    Field('payroll_new_id', 'id'),
     Field('code', unique = True),
     Field('description'),
     Field('file_id', 'reference file'),  # reference
@@ -21,6 +21,7 @@ db.define_table('salary',
     Field('salary_id', 'id'),
     Field('code', unique = True),
     Field('description'),
+    Field('payroll_id', 'reference payroll'),
     Field('cost_center_id', 'reference cost_center'),  # reference
     Field('staff_category_id', 'reference staff_category'),  # reference
     Field('file_id', 'reference file'), # reference
@@ -43,5 +44,3 @@ db.define_table('salary',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
-
-

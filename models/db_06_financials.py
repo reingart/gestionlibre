@@ -147,8 +147,8 @@ db.define_table('payment_method',
     migrate=migrate)
 
 # checkbook
-db.define_table('check_book',
-    Field('check_book_id', 'id'),
+db.define_table('checkbook',
+    Field('checkbook_id', 'id'),
     Field('code', unique = True),
     Field('description'),
     Field('account_id', 'reference account'),  # reference
@@ -159,4 +159,3 @@ db.define_table('check_book',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
-

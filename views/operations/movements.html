@@ -1,0 +1,8 @@
+{{extend 'layout.html'}}
+<h1>{{=message}}</h1>
+{{=HR()}}
+{{=reset_operation_form}}
+{{=form}}
+{{=HR()}}
+<h3>Insert movements element</h3>
+{{=LOAD(c="operations", f="movements_element.load", ajax=True)}}
