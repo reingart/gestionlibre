@@ -12,13 +12,13 @@ db.define_table('installment',
     Field('net', type='double', comment='Net amount'),
     Field('discount', type='double'),
     Field('paid', type='double'),
-    Field('fees', type='integer', default=0, comment='number of fees'),
+    Field('quotas', type='integer', default=0, comment='number of quotas'),
     Field('interests', type='double', default=0, comment='Transferred interests'),
     Field('late_payment', type='double', default=0, comment='Late payment fees'),
     Field('monthly_amount', type='double'),
-    Field('paid_fees', type='integer', default=0),
-    Field('starting_fee_id', 'reference fee', comment='fee_id'),
-    Field('ending_fee_id', 'reference fee', default=0, comment='fee_id'),
+    Field('paid_quotas', type='integer', default=0),
+    Field('starting_quota_id', 'integer', comment='quota_id'), # reference
+    Field('ending_quota_id', 'integer', default=0, comment='quota_id'), # reference
     Field('starting', type='datetime'),
     Field('first_due', type='datetime', comment='x days of month'),
     Field('second_due', type='datetime', comment='y days of month'),
@@ -33,6 +33,8 @@ db.define_table('quota',
     Field('quota_id', 'id'),
     Field('code', unique = True),
     Field('description'),
+    Field('installment_id', 'reference installment'),
+    Field('number', 'integer'), # TODO: computed field: index number in quotas ordered set +1 (order by id)
     Field('fee_id', 'reference fee'), # reference
     Field('amount', type='double'),
     Field('surcharge', type='double'),
@@ -47,4 +49,3 @@ db.define_table('quota',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
- 

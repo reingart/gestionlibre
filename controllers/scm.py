@@ -2,6 +2,19 @@
 # intente algo como
 import datetime
 
+# list of orderable concepts
+# returns a dict with value, name pairs for
+# IS_IN_SET validator
+def orderable_concepts(limit_by = None):
+    the_dict = dict()
+    rows = db(db.concept.orderable == True).select()
+    for n, row in enumerate(rows):
+        if (n < limit_by) or (limit_by is None):
+            the_dict[row.concept_id] = row.description
+        else:
+            break
+    return the_dict
+
 @auth.requires_login()
 def index():
     """ Customer on-line panel. Show info/stats/links to actions"""
@@ -121,24 +134,36 @@ def new_customer_order():
 
     return dict(form=form, reset = reset_order, contact = contact, customer = customer, order = db.operation[customer_order], contact_user = contact_user, order_options = order_options)
 
+# order movement creation
 def new_customer_order_element():
     """ Insert sub-form for product selection at Customer ordering form"""
     if not "customer_order" in session.keys():
         raise HTTP(500, "Customer order not found.")
-    form = SQLFORM(db.movement, fields=["description", "concept_id", "quantity"], _id="new_customer_order_element_form")
-    form.vars.operation_id = session.customer_order
+    form = SQLFORM.factory(Field('concept_id', 'reference concept', requires=IS_IN_SET(orderable_concepts())), Field('description'), Field('quantity', 'double'), _id="new_customer_order_element_form")
     if form.accepts(request.vars, session):
+        db.movement.insert(operation_id = session.customer_order, concept_id = request.vars.concept_id, description = request.vars.description, quantity = request.vars.quantity)
         response.flash = "Form accepted"
     order_list = db(db.movement.operation_id == session.customer_order).select()
     return dict(form=form, order_list = order_list)
 
+# order movement modification
 def new_customer_order_modify_element():
     """ Customer order element edition sub-form."""
     if not "customer_order" in session.keys():
         raise HTTP(500, "Customer order not found.")
-    customer_order_element = request.args[1]
-    form = SQLFORM(db.movement, customer_order_element, fields=["description", "concept_id", "quantity"], _id="new_customer_order_modify_element_form")
+    customer_order_element = db.movement[request.args[1]]
+    
+    form = SQLFORM.factory(Field('concept_id', 'reference concept', requires=IS_IN_SET(orderable_concepts()), default=customer_order_element.movement_id), Field('description', default=customer_order_element.description), Field('quantity', 'double', default = customer_order_element.quantity), _id="new_customer_order_modify_element_form")
     if form.accepts(request.vars, session):
+        customer_order_element.update_record(description = request.vars.description, concept_id = request.vars.concept_id, quantity = request.vars.quantity)
         response.flash = "Form accepted"
         redirect(URL(f="new_customer_order"))
     return dict(form=form)
+
+def new_customer():
+    form = crud.create(db.customer)
+    return dict(form = form)
+    
+def new_subcustomer():
+    form = crud.create(db.subcustomer)
+    return dict(form = form)

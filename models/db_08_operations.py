@@ -20,7 +20,7 @@ db.define_table('operation',
     Field('branch'),
     Field('number', type='integer', default=0),
     Field('due_date', type='datetime'),
-    Field('type', type='string', length=1), # reference?
+    Field('type', type='string', length=1, requires=IS_IN_SET({'T': 'Stock','S': 'Sales','P': 'Purchases'})), # reference? types: T: Stock, S: Sales, P: Purchases
     Field('canceled', type='boolean', default=False, comment='False if deferred payment (df), True if paid with cash, ch (check) or current account'),
     Field('processed', type='boolean', default=False),
     Field('voided', type='boolean', default=False), # ¿anulado?
@@ -42,6 +42,13 @@ db.define_table('operation',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
+
+def price_format(price):
+    try:
+        r = "%s - %s" % (price.concept_id.description, price.price_list_id.description)
+    except (ValueError, KeyError, AttributeError, IndexError, RuntimeError):
+        r = "Format error. price index " + str(price.price_id)
+    return r
 
 # price "engine":
 db.define_table('price',
@@ -74,7 +81,5 @@ db.define_table('price',
     Field('priority', type='integer'),
     Field('formula', type='text'),
     Field('replica', type='boolean', default=False),
-    format='%(description)s',
+    format=price_format,
     migrate=migrate)
-
-

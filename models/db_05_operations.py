@@ -24,7 +24,6 @@ db.define_table('concept',
     Field('measure', type='string', length=1),
     Field('desired', type='double', default=0), # ¿deseado?
     Field('presentation', type='string', length=100),
-    Field('description', type='text'),
     Field('entry', type='boolean', default=False),
     Field('exit', type='boolean', default=False),
     Field('taxed', type='boolean', default=False), #  ¿gravado?
@@ -48,6 +47,6 @@ db.define_table('concept',
     Field('discounts', type='boolean', default=False),
     Field('surcharges', type='boolean', default=False),
     Field('replica', type='boolean', default=False),
+    Field('orderable', 'boolean', default=False), # can be ordered/bought
     format='%(description)s',
     migrate=migrate)
- 

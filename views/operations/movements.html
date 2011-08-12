@@ -1,6 +1,7 @@
 {{extend 'layout.html'}}
 <h1>{{=message}}</h1>
 {{=HR()}}
+{{=A("List of operations", _href=URL(c="operations", f="index"))}}
 {{=reset_operation_form}}
 {{=form}}
 {{=HR()}}

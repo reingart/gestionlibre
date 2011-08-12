@@ -1,9 +1,37 @@
 # coding: utf8
 # intente algo como
-def index(): return dict(message="hello from operations.py")
+
+import datetime
+
+@auth.requires_login()
+def index():
+    """ Staff on-line panel. Show info/stats/links to actions"""
+
+    now = datetime.datetime.now()
+    delta = datetime.timedelta(7)
+    time_limit = now - delta
+
+    q = db.operation.operation_id > 0
+    preset = db(q)
+    the_set = preset(db.operation.posted >= time_limit)
+
+    """
+    TODO: filter by order document type
+
+    # list all document types with orders == True
+    order_documents = db(db.document.orders == True).select()
+    order_documents_list = [document.document_id for document in order_documents]
+    # make a subset of operations with order documents
+    customer_orders_subset = customer_orders_set & db()
+    """
+    # get operation rows
+    operations = the_set.select()
+
+    return dict(operations = operations, message="Administrative panel")
 
 # base web interface for movements
 # administration
+@auth.requires_login()
 def movements():
     # reset the current operation (sent client-side)
     reset_operation_form = FORM(INPUT(_type="submit", _value="Reset operation"))
@@ -17,6 +45,8 @@ def movements():
     # specified, create one
     if ("new" in request.vars) or (operation_id is None):
         session.operation_id = operation_id = db.operation.insert(user_id = auth.user_id)
+    elif len(request.args) > 0:
+        session.operation_id = operation_id = int(request.args[1])
 
     # standard operation update sqlform
     form = SQLFORM(db.operation, operation_id, _id="operation_form")
