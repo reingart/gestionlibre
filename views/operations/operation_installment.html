@@ -1,0 +1,10 @@
+{{extend 'layout.html'}}
+<h1>Operation installment</h1>
+{{=form}}
+{{if installment:}}
+{{=HR()}}
+<h3>Installment</h3>
+{{=crud.read(db.installment, installment)}}
+{{=HR()}}
+<h3>Total: {{=total}}</h3>
+{{pass}}

@@ -60,11 +60,11 @@ def new_customer_order():
     i.e. contact.customer returns the db record id """
 
     if len(request.args) > 0:
-        session.customer_order = int(request.args[1])
+        session.operation_id = int(request.args[1])
     
     reset_order = FORM(INPUT(_type="submit", _value="Reset order"))
     if reset_order.accepts(request.vars, session):
-        session.customer_order = None
+        session.operation_id = None
     contact_user = db(db.contact_user.user_id == auth.user_id).select().first()
     
     # catch incomplete registrations (no contact user relations)
@@ -90,14 +90,14 @@ def new_customer_order():
     if isinstance(default_order, basestring): default_order = int(default_order)
 
     # create a new order with pre-populated user data
-    if not "customer_order" in session.keys():
+    if not "operation_id" in session.keys():
         customer_order = db.operation.insert(customer_id = customer, document_id = default_order.value)
-        session.customer_order = customer_order
+        session.operation_id = customer_order
     else:
-        customer_order = session.customer_order
-        if session.customer_order is None:
+        customer_order = session.operation_id
+        if session.operation_id is None:
             customer_order = db.operation.insert(customer_id = customer, document_id = default_order.value)
-            session.customer_order = customer_order
+            session.operation_id = customer_order
 
     form = SQLFORM(db.operation, customer_order, fields=["description"], _id="new_customer_order_form")
 
@@ -137,19 +137,19 @@ def new_customer_order():
 # order movement creation
 def new_customer_order_element():
     """ Insert sub-form for product selection at Customer ordering form"""
-    if not "customer_order" in session.keys():
+    if not "operation_id" in session.keys():
         raise HTTP(500, "Customer order not found.")
     form = SQLFORM.factory(Field('concept_id', 'reference concept', requires=IS_IN_SET(orderable_concepts())), Field('description'), Field('quantity', 'double'), _id="new_customer_order_element_form")
     if form.accepts(request.vars, session):
-        db.movement.insert(operation_id = session.customer_order, concept_id = request.vars.concept_id, description = request.vars.description, quantity = request.vars.quantity)
+        db.movement.insert(operation_id = session.operation_id, concept_id = request.vars.concept_id, description = request.vars.description, quantity = request.vars.quantity)
         response.flash = "Form accepted"
-    order_list = db(db.movement.operation_id == session.customer_order).select()
+    order_list = db(db.movement.operation_id == session.operation_id).select()
     return dict(form=form, order_list = order_list)
 
 # order movement modification
 def new_customer_order_modify_element():
     """ Customer order element edition sub-form."""
-    if not "customer_order" in session.keys():
+    if not "operation_id" in session.keys():
         raise HTTP(500, "Customer order not found.")
     customer_order_element = db.movement[request.args[1]]
     
