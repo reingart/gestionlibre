@@ -40,6 +40,7 @@ def list_installments():
     linkto=URL(c="fees", f="update_installment")))
     
 def update_installment():
+    session.installment_id = int(request.args[1])
     return dict(form = crud.update(db.installment, request.args[1]))
 
 def list_quotas():

@@ -31,7 +31,7 @@ db.define_table('operation',
     Field('cancellation', type='boolean', default=False),
     Field('avoidance', type='boolean', default=False), # ¿anulación?
     Field('file_id', 'reference file'), # ¿legajo? # reference
-    Field('payroll', 'reference payroll'), # reference
+    Field('payroll_id', 'reference payroll'), # reference
     Field('user_id', 'reference auth_user'), # reference
     Field('hour', type='datetime'),
     Field('replicated', type='datetime'),

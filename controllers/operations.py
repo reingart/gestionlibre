@@ -3,6 +3,54 @@
 
 import datetime
 
+# process operation
+def process(operation_id):
+    # TODO: move this code to a special module
+    
+    # error list for web client feedback
+    errors = []
+    
+    # process operation and movements
+    # return True if successful
+        
+    # get the operation record
+    operation = db.operation[operation_id]
+    
+    # check if already processed
+    if operation.processed:
+        return False
+    
+    # get the last journal entry
+    # TODO: precise j.e. selection/creation
+    journal_entry = db(db.journal_entry).select().last()
+    
+    # movements loop (process entries)
+    entries = 0
+    for mov in db(db.movement.operation_id == operation_id).select():
+        # check if entry or exit and change the records amount with correct sign
+        concept = mov.concept_id
+        amount = None
+        if concept.entry:
+            amount = mov.amount
+        elif concept.exit:
+            amount = -(mov.amount)
+        # insert entry record
+        db.entry.insert(journal_entry_id = journal_entry, \
+        account_id = concept.account_id, amount = amount)
+        entries += 1
+
+    # if all records were successfuly added
+    # TODO: (and operation validates)
+    if entries > 0:
+        # check operation as processed
+        # and exit
+        operation.update_record(processed = True)
+        return True
+        
+    # no process made
+    return False
+
+
 @auth.requires_login()
 def index():
     """ Staff on-line panel. Show info/stats/links to actions"""
@@ -35,7 +83,7 @@ def index():
 def movements():
     # reset the current operation (sent client-side)
     reset_operation_form = FORM(INPUT(_type="submit", _value="Reset operation"))
-    if reset_operation_form.accepts(request.vars, session):
+    if reset_operation_form.accepts(request.vars, formname="reset_operation"):
         session.operation_id = None
 
     # get the current operation if stored in session
@@ -50,12 +98,25 @@ def movements():
         session.operation_id = operation_id = int(request.args[1])
 
     # standard operation update sqlform
+    # TODO: operation change shouldn't be allowed if processed
     form = SQLFORM(db.operation, operation_id, _id="operation_form")
-    if form.accepts(request.vars, session):
+    if form.accepts(request.vars):
         response.flash = "Form accepted"
     
+    # Process operation for accounting/other when accepted
+    process_operation_form = FORM(INPUT(_value="Process", _type="submit"))
+    
+    if process_operation_form.accepts(request.vars, formname="process_operation"):
+        # TODO: incomplete
+        # do not expose if operation was already processed
+        # process/validate the operation
+        if process(operation_id):
+            response.flash = "Operation processed"
+        else:
+            response.flash = "Could not process the operation"
+    
     return dict(message="Operation number %s" % operation_id, form = form, \
-    reset_operation_form = reset_operation_form)
+    reset_operation_form = reset_operation_form, process_operation_form = process_operation_form)
     
 def movements_element():
     """ Insert sub-form for concept selection at movements form"""
