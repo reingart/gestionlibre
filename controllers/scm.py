@@ -215,12 +215,12 @@ def order_allocation():
                 movements_stack[customer][\
                 concept] = dict(first = operation, \
                 qty = qty, allocated = 0, pending = True, \
-                stock = 0)
+                stock = 0, allocate = 0.0)
         else:        
             movements_stack[customer] = dict()
             movements_stack[customer][concept] = dict(\
             first = operation, qty = qty, \
-            allocated = 0, pending = True, stock = 0)
+            allocated = 0, pending = True, stock = 0, allocate = 0.0)
     
     # compare order quantity and allocated qty
     # per order item (order allocation after order date)
@@ -237,6 +237,9 @@ def order_allocation():
                 ].posted
             except AttributeError:
                 stock = oldest = None
+            
+            # update the stock value for the current customer/concept    
+            movements_stack[customer][concept]["stock"] = stock            
 
             q = db.movement.posted >= oldest and db.movement.concept_id == concept
             q &= db.movement.operation_id == db.operation.operation_id
@@ -261,11 +264,9 @@ def order_allocation():
     
     # present a form-row to allocate from inventory
     # based on available stock value.
-    db_values = []
     form_rows = []
     for customer, v in movements_stack.iteritems():
         for concept, w in v.iteritems():
-            db_values.append((customer, concept))
             try:
                 # getting the customer with dictionary syntax
                 # throws a KeyError exception
@@ -290,11 +291,36 @@ def order_allocation():
     
     # form processing:
     # classify allocated items by customer
-    
     # for each customer allocation item group
+
+    operations = set()
     
-    # create and populate the order allocation document
-    
+    if form.accepts(request.vars, session):
+        for var in request.vars:
+            if "order_allocation" in var:
+                try:
+                    concept = int(var.split("_")[3])
+                    customer = int(var.split("_")[2])
+                    movements_stack[customer][concept]["allocate"] = float(request.vars[var])
+                except (ValueError, TypeError, KeyError):
+                    customer = None
+                    concept = None
+       
+        # create and populate the order allocation document
+        for customer, v in movements_stack.iteritems():
+            operation = None
+            for concept, w in v.iteritems():
+                if w["allocate"] > 0:
+                    if operation is None:
+                        # new operation
+                        # TODO: order allocation document defined by user input/configuration
+                        operation = db.operation.insert(customer_id = customer, document_id = db(db.document.books == True).select().first())
+                    db.movement.insert(operation_id = operation, quantity = w["allocate"], concept_id = concept)
+                    # reduce stock value
+                    stock_item = db(db.stock.concept_id == concept).select().first()
+                    stock_value = stock_item.value -w["allocate"]
+                    stock_item.update_record(value = stock_value)
+                    operations.add(operation)
+
     # return a list with allocations by item
-    
-    return dict(form = form, m_s = movements_stack, db_values = db_values)
+    return dict(form = form, operations = operations)
