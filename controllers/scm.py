@@ -167,3 +167,134 @@ def new_customer():
 def new_subcustomer():
     form = crud.create(db.subcustomer)
     return dict(form = form)
+
+def order_allocation():
+    # Note: this is a draft for
+    # Inventory/Order allocation
+    # management and is not intended
+    # as a complete and refined solution
+    # for the matter. TODO: order allocation
+    # algorithms implementation
+    
+    # the current algorithm
+    # has not been tested
+    # and may lead to stock inconsistencies
+    
+    # get movements from order operations
+    # wich have unallocated items (unprocessed)
+
+    q = db.movement.operation_id == db.operation.operation_id
+    q &= db.operation.processed != True
+    q &= db.operation.document_id == db.document.document_id
+    q &= db.document.orders == True
+    preset = db(q)
+    order_movements = preset.select()
+    
+    # separate movements by customer and concept
+    movements_stack = dict()
+    pending_stack = dict()
+    operations = set()
+    for om in order_movements:
+        try:
+            qty = float(om.movement.quantity)
+        except (ValueError, KeyError):
+            qty = 0
+        try:    
+            concept = int(om.movement.concept_id)
+            customer = int(om.operation.customer_id)
+            operation = int(om.operation.operation_id)
+            operations.add(operation)
+        except KeyError:
+            concept = customer = operation = None
+        
+        if customer in movements_stack:
+            if concept in movements_stack[customer]:
+                movements_stack[customer][\
+                concept]["qty"] += qty
+            else:
+                movements_stack[customer][\
+                concept] = dict(first = operation, \
+                qty = qty, allocated = 0, pending = True, \
+                stock = 0)
+        else:        
+            movements_stack[customer] = dict()
+            movements_stack[customer][concept] = dict(\
+            first = operation, qty = qty, \
+            allocated = 0, pending = True, stock = 0)
+    
+    # compare order quantity and allocated qty
+    # per order item (order allocation after order date)
+    for customer in movements_stack:
+        for concept in movements_stack[customer]:
+            # get the item stock
+            # TODO: manage user selected warehouses
+            
+            try:
+                stock = db(\
+                db.stock.concept_id == concept).select().first().value
+                oldest = db.operation[movements_stack[\
+                customer][concept]["first"]\
+                ].posted
+            except AttributeError:
+                stock = oldest = None
+
+            q = db.movement.posted >= oldest and db.movement.concept_id == concept
+            q &= db.movement.operation_id == db.operation.operation_id
+            q &= db.operation.document_id == db.document.document_id
+            q &= db.document.books == True
+            allocated_set = db(q)
+            
+            # set allocated amount
+            try:
+                movements_stack[customer][concept][\
+                "allocated"] = sum(\
+                [m.movement.quantity for m in allocated_set.select() \
+                if m.movement.quantity is not None], 0.00)
+            except KeyError:
+                movements_stack[customer][concept][\
+                "allocated"] = 0.00
+            # if allocated is equal to ordered for any order movement
+            # set item as completed
+            if movements_stack[customer][concept]["qty"] <= \
+            movements_stack[customer][concept]["allocated"]:
+                movements_stack[customer][concept]["pending"] = False
+    
+    # present a form-row to allocate from inventory
+    # based on available stock value.
+    db_values = []
+    form_rows = []
+    for customer, v in movements_stack.iteritems():
+        for concept, w in v.iteritems():
+            db_values.append((customer, concept))
+            try:
+                # getting the customer with dictionary syntax
+                # throws a KeyError exception
+                customer_desc = db(db.customer.customer_id == customer).select().first().description
+            except (AttributeError, KeyError):
+                customer_desc = customer
+            try:
+                concept_code = db.concept[str(concept)].code
+                concept_desc = db.concept[str(concept)].description                
+            except (AttributeError, KeyError):
+                concept_code = concept_desc = concept
+                
+            form_rows.append(TR(TD(customer_desc), TD(concept_code), \
+            TD(concept_desc), TD(w["qty"]), TD(w["allocated"]), \
+            TD(w["stock"]), \
+            INPUT(_name="order_allocation_%s_%s" % (customer, concept))))
+            
+    form = FORM(TABLE(THEAD(TR(TH("Customer"),TH("Product code"), \
+    TH("Concept"), TH("Ordered"), TH("Allocated"), TH("Stock"), \
+    TH("Allocate"))), TBODY(*form_rows), TFOOT(TR(TD(), TD(), TD(), \
+    TD(), TD(), TD(), TD(INPUT(_value="Allocate orders", _type="submit"))))))
+    
+    # form processing:
+    # classify allocated items by customer
+    
+    # for each customer allocation item group
+    
+    # create and populate the order allocation document
+    
+    # return a list with allocations by item
+    
+    return dict(form = form, m_s = movements_stack, db_values = db_values)
