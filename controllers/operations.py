@@ -16,6 +16,11 @@ def process(operation_id):
     # get the operation record
     operation = db.operation[operation_id]
     
+    # the document must be countable
+    document = operation.document_id
+    if not document.countable:
+        return False
+    
     # check if already processed
     if operation.processed:
         return False

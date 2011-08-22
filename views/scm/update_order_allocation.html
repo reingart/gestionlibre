@@ -1,0 +1,4 @@
+{{extend 'layout.html'}}
+<h1>Update order allocation</h1>
+{{=A("New packing slip from this allocation", _href=URL(c="scm", f="packing_slip", args = request.args))}}
+{{=order_allocation}}

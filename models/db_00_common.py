@@ -88,8 +88,8 @@ db.define_table('tax',
     Field('category'), # vat type
     Field('abbr', type='string', length=3),
     Field('discriminate', type='boolean', default=False),
-    Field('document_sales', 'integer'),  # reference
-    Field('document_purchases', 'integer'),  # reference
+    Field('document_sales_id', 'integer'),  # reference
+    Field('document_purchases_id', 'integer'),  # reference
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)

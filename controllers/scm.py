@@ -324,3 +324,25 @@ def order_allocation():
 
     # return a list with allocations by item
     return dict(form = form, operations = operations)
+
+def list_order_allocations():
+    q = db.operation.processed == False
+    q &= db.operation.document_id == db.document.document_id
+    q &= db.document.books == True
+    columns = ["operation.operation_id", "operation.code", "operation.description", "operation.posted"]
+    order_allocations = SQLTABLE(db(q).select(), columns = columns, linkto=URL(c="scm", f="update_order_allocation"))
+    
+    return dict(order_allocations = order_allocations)
+    
+def update_order_allocation():
+    order_allocation = crud.update(db.operation, request.args[1])
+    return dict(order_allocation = order_allocation)
+
+def packing_slip():
+    order_allocation_id = request.args[1]
+    order_allocation = db.operation[order_allocation_id]
+    # copy the allocation data to the new packing slip
+    # TODO: user/configuration document selection
+    packing_slip_id = db.operation.insert(customer_id = order_allocation.customer_id, document_id = db(db.document.packing_slips == True).select().first().document_id)
+    # TODO: fill packing slip with allocation movements
+    return dict(packing_slip = crud.update(db.operation, packing_slip_id))
