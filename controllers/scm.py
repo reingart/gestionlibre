@@ -329,20 +329,44 @@ def list_order_allocations():
     q = db.operation.processed == False
     q &= db.operation.document_id == db.document.document_id
     q &= db.document.books == True
-    columns = ["operation.operation_id", "operation.code", "operation.description", "operation.posted"]
-    order_allocations = SQLTABLE(db(q).select(), columns = columns, linkto=URL(c="scm", f="update_order_allocation"))
-    
+    columns = ["operation.operation_id", "operation.code", \
+    "operation.description", "operation.posted"]
+    headers={"operation.operation_id": "Edit", "operation.code":"Code", \
+    "operation.description": "Description", "operation.posted": "Posted"}
+    order_allocations = SQLTABLE(db(q).select(), columns = columns, \
+    headers = headers, \
+    linkto=URL(c="scm", f="update_order_allocation"))
     return dict(order_allocations = order_allocations)
     
 def update_order_allocation():
     order_allocation = crud.update(db.operation, request.args[1])
-    return dict(order_allocation = order_allocation)
+    movements = SQLTABLE(db(db.movement.operation_id == request.args[1]).select(), \
+    columns=["movement.movement_id", "movement.code","movement.concept_id", \
+    "movement.quantity"], headers={"movement.movement_id": \
+    "ID", "movement.code": "Code", \
+    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, \
+    linkto=URL(c="operations", f="movements_modify_element"))
+    return dict(order_allocation = order_allocation, movements = movements)
 
 def packing_slip():
     order_allocation_id = request.args[1]
     order_allocation = db.operation[order_allocation_id]
     # copy the allocation data to the new packing slip
     # TODO: user/configuration document selection
-    packing_slip_id = db.operation.insert(customer_id = order_allocation.customer_id, document_id = db(db.document.packing_slips == True).select().first().document_id)
+    packing_slip_id = db.operation.insert(\
+    customer_id = order_allocation.customer_id, \
+    document_id = db(db.document.packing_slips == True).select(\
+    ).first().document_id)
     # TODO: fill packing slip with allocation movements
-    return dict(packing_slip = crud.update(db.operation, packing_slip_id))
+    for m in db(db.movement.operation_id == order_allocation_id).select():
+        db.movement.insert(operation_id = packing_slip_id, quantity = m.quantity, \
+        value = m.value, concept_id = m.concept_id)
+
+    movements = SQLTABLE(db(db.movement.operation_id == packing_slip_id).select(), \
+    columns=["movement.movement_id", "movement.code","movement.concept_id", \
+    "movement.quantity"], headers={"movement.movement_id": "ID", "movement.code": "Code", \
+    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, linkto=URL(c="operations", f="movements_modify_element"))
+        
+    order_allocation.update_record(processed = True)
+    return dict(packing_slip = crud.update(db.operation, packing_slip_id), \
+    movements = movements)

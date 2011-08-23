@@ -145,8 +145,6 @@ def movements_element():
 
 def movements_modify_element():
     """ Movements element edition sub-form."""
-    if not "operation_id" in session.keys():
-        raise HTTP(500, "Operation not found.")
     movements_element = request.args[1]
     form = SQLFORM(db.movement, movements_element, \
     _id="movements_modify_element_form")
