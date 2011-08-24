@@ -340,7 +340,8 @@ def list_order_allocations():
     
 def update_order_allocation():
     order_allocation = crud.update(db.operation, request.args[1])
-    movements = SQLTABLE(db(db.movement.operation_id == request.args[1]).select(), \
+    movements = SQLTABLE(db(\
+    db.movement.operation_id == request.args[1]).select(), \
     columns=["movement.movement_id", "movement.code","movement.concept_id", \
     "movement.quantity"], headers={"movement.movement_id": \
     "ID", "movement.code": "Code", \
@@ -359,14 +360,86 @@ def packing_slip():
     ).first().document_id)
     # TODO: fill packing slip with allocation movements
     for m in db(db.movement.operation_id == order_allocation_id).select():
-        db.movement.insert(operation_id = packing_slip_id, quantity = m.quantity, \
+        db.movement.insert(operation_id = packing_slip_id, \
+        quantity = m.quantity, \
         value = m.value, concept_id = m.concept_id)
 
-    movements = SQLTABLE(db(db.movement.operation_id == packing_slip_id).select(), \
+    movements = SQLTABLE(db(\
+    db.movement.operation_id == packing_slip_id).select(), \
     columns=["movement.movement_id", "movement.code","movement.concept_id", \
-    "movement.quantity"], headers={"movement.movement_id": "ID", "movement.code": "Code", \
-    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, linkto=URL(c="operations", f="movements_modify_element"))
+    "movement.quantity"], headers={"movement.movement_id": "ID", \
+    "movement.code": "Code", \
+    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, \
+    linkto=URL(c="operations", f="movements_modify_element"))
         
     order_allocation.update_record(processed = True)
     return dict(packing_slip = crud.update(db.operation, packing_slip_id), \
     movements = movements)
+
+def receipt():
+    """    Get or create a new receipt.
+    Presents a one-view multi-form receipt
+    for customer payments
+    """
+    operation_id = session.get("operation_id", None)
+    
+    # allow receipt reset
+    reset_receipt_form = FORM(INPUT(_type="submit", _value="Reset receipt"))
+    if reset_receipt_form.accepts(request.vars, \
+    formname="reset_receipt_form"):
+        operation_id = session.operation_id = None
+                
+    # get the session receipt or create one
+    if operation_id is None:
+        # new receipt
+        # TODO: user/configuration selected receipt document
+        document = db(db.document.receipts == True).select().first()
+        operation_id = session.operation_id = db.operation.insert(\
+        document_id = document)
+
+    operation = db.operation[session.operation_id]
+    document = db.document[operation.document_id]
+    
+    process_receipt_form = FORM(INPUT(_value="Process receipt", \
+    _type="submit"))
+    
+    if process_receipt_form.accepts(request.vars, formname = "process_receipt_form"):
+        # TODO: receipt processing
+        # Balance movements
+        # Call common operation process
+        # Check as processed or return errors
+        operation.update_record(processed = True)
+        response.flash="Receipt processed"
+
+    receipt_form = crud.update(db.operation, operation_id)
+    if receipt_form.accepts(request.vars, \
+    formname="receipt_form"):
+        response.flash="Form accepted"
+    
+    if (document is None) or (document.receipts != True):
+        # return error
+        response.flash="Warning! Wrong document type."
+    
+    return dict(receipt_form = receipt_form, \
+    process_receipt_form = process_receipt_form, \
+    reset_receipt_form = reset_receipt_form)
+
+def receipt_checks():
+    operation_id = session.operation_id
+    check_form = crud.create(db.bank_check)
+    check_form.vars.operation_id = operation_id
+    checks_list = SQLTABLE(db(\
+    db.bank_check.operation_id == operation_id).select())
+    return dict(check_form = check_form, checks_list = checks_list)
+
+def receipt_items():
+    """ Cash or inter bank account payments """
+    receipt_item_form = crud.create(db.movement, \
+    formname="receipt_item_form")
+    # TODO: auto complete movemens with payment data
+    # and filter the rest of concepts stored in db
+    receipt_item_form.vars.operation_id = session.operation_id
+    receipt_items_list = SQLTABLE(db(\
+    db.movement.operation_id == session.operation_id).select())
+    return dict(receipt_item_form = receipt_item_form, \
+    receipt_items_list = receipt_items_list)

@@ -1,0 +1,11 @@
+{{extend 'layout.html'}}
+<h1>Receipt number {{=session.operation_id}}</h1>
+{{=reset_receipt_form}}
+{{=process_receipt_form}}
+{{=receipt_form}}
+{{=HR()}}
+{{=H3("Checks")}}
+{{=LOAD(c="scm", f="receipt_checks.load", ajax=True)}}
+{{=HR()}}
+{{=H3("Cash/transfer")}}
+{{=LOAD(c="scm", f="receipt_items.load", ajax=True)}}
