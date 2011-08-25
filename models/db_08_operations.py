@@ -2,6 +2,13 @@
 
 migrate = True
 
+def operation_format(r):
+    try:
+        of = "%s %s" % (db.document[r.document_id].description, r.operation_id)
+    except (AttributeError, KeyError, ValueError, TypeError):
+        of = "Format error: operation %s" % r.operation_id
+    return of
+
 # Source Document (transactions records)
 db.define_table('operation',
     Field('operation_id', 'id'),
@@ -40,7 +47,7 @@ db.define_table('operation',
     Field('printed', type='boolean', default=False),
     Field('jurisdiction_id', 'reference jurisdiction'), # reference
     Field('replica', type='boolean', default=False),
-    format='%(description)s',
+    format=operation_format,
     migrate=migrate)
 
 def price_format(price):

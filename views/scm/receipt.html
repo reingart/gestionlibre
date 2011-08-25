@@ -1,5 +1,6 @@
 {{extend 'layout.html'}}
 <h1>Receipt number {{=session.operation_id}}</h1>
+{{=A("Receipts list", _href=URL(c="scm", f="list_receipts"))}}
 {{=reset_receipt_form}}
 {{=process_receipt_form}}
 {{=receipt_form}}

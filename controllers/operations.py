@@ -3,59 +3,6 @@
 
 import datetime
 
-# process operation
-def process(operation_id):
-    # TODO: move this code to a special module
-    
-    # error list for web client feedback
-    errors = []
-    
-    # process operation and movements
-    # return True if successful
-        
-    # get the operation record
-    operation = db.operation[operation_id]
-    
-    # the document must be countable
-    document = operation.document_id
-    if not document.countable:
-        return False
-    
-    # check if already processed
-    if operation.processed:
-        return False
-    
-    # get the last journal entry
-    # TODO: precise j.e. selection/creation
-    journal_entry = db(db.journal_entry).select().last()
-    
-    # movements loop (process entries)
-    entries = 0
-    for mov in db(db.movement.operation_id == operation_id).select():
-        # check if entry or exit and change the records amount with correct sign
-        concept = mov.concept_id
-        amount = None
-        if concept.entry:
-            amount = mov.amount
-        elif concept.exit:
-            amount = -(mov.amount)
-        # insert entry record
-        db.entry.insert(journal_entry_id = journal_entry, \
-        account_id = concept.account_id, amount = amount)
-        entries += 1
-
-    # if all records were successfuly added
-    # TODO: (and operation validates)
-    if entries > 0:
-        # check operation as processed
-        # and exit
-        operation.update_record(processed = True)
-        return True
-        
-    # no process made
-    return False
-
-
 @auth.requires_login()
 def index():
     """ Staff on-line panel. Show info/stats/links to actions"""

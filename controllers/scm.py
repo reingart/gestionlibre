@@ -241,7 +241,7 @@ def order_allocation():
             # update the stock value for the current customer/concept    
             movements_stack[customer][concept]["stock"] = stock            
 
-            q = db.movement.posted >= oldest and db.movement.concept_id == concept
+            q = (db.movement.posted >= oldest) & (db.movement.concept_id == concept)
             q &= db.movement.operation_id == db.operation.operation_id
             q &= db.operation.document_id == db.document.document_id
             q &= db.document.books == True
@@ -408,8 +408,11 @@ def receipt():
         # Balance movements
         # Call common operation process
         # Check as processed or return errors
-        operation.update_record(processed = True)
-        response.flash="Receipt processed"
+        if process(operation_id):
+            operation.update_record(processed = True)
+            response.flash="Receipt processed"
+        else:
+            response.flash="Could not process the receipt"
 
     receipt_form = crud.update(db.operation, operation_id)
     if receipt_form.accepts(request.vars, \
@@ -427,19 +430,88 @@ def receipt():
 def receipt_checks():
     operation_id = session.operation_id
     check_form = crud.create(db.bank_check)
+    if check_form.accepts(request.vars, session):
+        # create a movement for the current account entry
+        # TODO: form/config sourced current account record option
+
+        # check concept
+        check_concept = db((db.concept.banks == True) \
+        & (db.concept.entry == True)).select().first()
+
+        db.movement.insert(operation_id = operation_id, \
+        concept_id = check_concept.concept_id, value = request.vars.amount, \
+        amount = request.vars.amount)
+
+        # current account concept
+        current_account_concept = db((db.concept.current_account == True) \
+        & (db.concept.exit == True)).select().first()
+        
+        db.movement.insert(operation_id = operation_id, \
+        concept_id = current_account_concept.concept_id, value = request.vars.amount, \
+        amount = request.vars.amount)
+
+        response.flash = "Item added"
+
     check_form.vars.operation_id = operation_id
+
+    columns = ["bank_ckeck.bank_check_id", "bank_check.number", \
+    "bank_check.customer_id", \
+    "bank_check.code", "bank_check.description", "bank_check.amount"]
+    headers = {"bank_ckeck.bank_check_id": "Edit", \
+    "bank_check.number": "Number", "bank_check.customer_id": "Customer", \
+    "bank_check.code": "Code", "bank_check.description": "Description", \
+    "bank_check.amount": "Amount"}
+
     checks_list = SQLTABLE(db(\
-    db.bank_check.operation_id == operation_id).select())
+    db.bank_check.operation_id == operation_id).select(), \
+    columns = columns, headers = headers)
+
     return dict(check_form = check_form, checks_list = checks_list)
 
 def receipt_items():
     """ Cash or inter bank account payments """
     receipt_item_form = crud.create(db.movement, \
     formname="receipt_item_form")
+    operation_id = session.operation_id
     # TODO: auto complete movemens with payment data
     # and filter the rest of concepts stored in db
+
+    if receipt_item_form.accepts(request.vars, session):
+        # create a movement for the current account entry
+        # TODO: form/config sourced current account record option
+        concept = db((db.concept.current_account == True) & \
+        (db.concept.exit == True)).select().first()
+        db.movement.insert(operation_id = operation_id, \
+        concept_id = concept.concept_id, value = request.vars.value, \
+        amount = request.vars.amount)
+        response.flash = "Item added"
+
+    columns = ["movement.movement_id", "movement.code", \
+    "movement.description", \
+    "movement.posted", "movement.amount", "movement.concept_id"]
+    headers = {"movement.movement_id": "Edit", "movement.code": "Code", \
+    "movement.description": "Description", "movement.posted": "Posted", \
+    "movement.amount": "Amount", "movement.concept_id": "Concept"}
+
     receipt_item_form.vars.operation_id = session.operation_id
     receipt_items_list = SQLTABLE(db(\
-    db.movement.operation_id == session.operation_id).select())
+    db.movement.operation_id == session.operation_id).select(), \
+    columns = columns, headers = headers, linkto=URL(c="operations", \
+    f="movements_modify_element"))
     return dict(receipt_item_form = receipt_item_form, \
     receipt_items_list = receipt_items_list)
+
+def list_receipts():
+    q = (db.operation.document_id == db.document.document_id) & \
+    (db.document.receipts == True)
+    columns = ["operation.operation_id", "operation.code", \
+    "operation.description", "document.description", \
+    "operation.posted"]
+    headers = {"operation.operation_id": "Edit", \
+    "operation.code": "Code", "operation.description": "Description", \
+    "document.description": "Document", \
+    "operation.posted": "Posted"}
+    
+    receipts = SQLTABLE(db(q).select(), columns = columns, \
+    headers = headers, linkto=URL(c="operations", f="movements"))
+    return dict(receipts = receipts)
