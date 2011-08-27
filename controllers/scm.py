@@ -515,3 +515,76 @@ def list_receipts():
     receipts = SQLTABLE(db(q).select(), columns = columns, \
     headers = headers, linkto=URL(c="operations", f="movements"))
     return dict(receipts = receipts)
+
+def product_billing():
+    """ Presents a packing slips list for billing
+    and collects billing details. Creates an invoice
+    and redirects the action to the movements update form.
+    """
+    packing_slips = list()
+    packing_slips_rows = list()
+    checked_list = list()
+    document_id = None
+    customer_id = session.get("customer_id", None)
+    subcustomer_id = session.get("subcustomer_id", None)
+    
+    # form to filter packing slips  by customer
+    customer_form = SQLFORM.factory(Field('customer_id', \
+    'reference customer', requires = IS_IN_DB(db, db.customer, "%(legal_name)s")), \
+    Field('subcustomer_id', 'reference subcustomer', \
+    requires = IS_IN_DB(db, db.subcustomer, "%(legal_name)s")))
+    if customer_form.accepts(request.vars, session, keepvalues=True, formname="customer_form"):
+        q = (db.operation.customer_id == request.vars.customer_id) | (db.operation.subcustomer_id == request.vars.subcustomer_id)
+        q &= db.operation.processed != True
+        q &= db.operation.document_id == db.document.document_id
+        q &= db.document.packing_slips == True
+        packing_slips = db(q).select()
+        session.customer_id = request.vars.customer
+        session.subcustomer_id = request.vars.subcustomer
+        
+    # create packing slips table for selection
+    # and the actual billing form
+    # TODO: present new fashion third party widgets for multiselect box
+    for row in packing_slips:    
+        packing_slips_rows.append(TR(TD(row.operation.operation_id), \
+        TD(row.operation.posted), \
+        TD(row.operation.code), TD(row.operation.description), \
+        INPUT(_type="checkbox", \
+        _name="operation_%s" % row.operation.operation_id)))
+    
+    documents = db(db.document.invoices == True).select()
+    document_options = [OPTION(document.description, _value=document.document_id) for document in documents]
+            
+    billing_form = FORM(TABLE(THEAD(TR(TH("Operation"),TH("Posted"), \
+    TH("Code"), TH("Description"), TH("Bill"))), \
+    TBODY(*packing_slips_rows), \
+    TFOOT(TR(TD(), TD(), TD(), TD(LABEL("Choose a document type", _for="document_id"), SELECT(*document_options, _name="document_id")), \
+    TD(INPUT(_value="Bill checked", _type="submit"))))))
+
+    # operations marked for billing    
+    bill_items = []
+    
+    if billing_form.accepts(request.vars, session, \
+    formname="billing_form"):
+        for v in request.vars:
+            if v.startswith("operation_"):
+                bill_items.append(int(v.split("_")[1]))
+        if len(bill_items) > 0:
+            # create an invoice  with the collected data
+            invoice_id = db.operation.insert(document_id = request.vars.document_id, customer_id = customer_id, subcustomer_id =  subcustomer_id)
+            # fill the invoice
+            for packing_slip_id in bill_items:
+                packing_slip_items = db(db.movement.operation_id == packing_slip_id).select()
+                for movement in packing_slip_items:
+                    db.movement.insert(operation_id = invoice_id, concept_id = movement.concept_id, amount = movement.amount, value = movement.value, quantity = movement.quantity)
+                # check the packing slip as processed
+                db.operation[packing_slip_id].update_record(processed = True)
+
+            # TODO: insert ivoices payment / current account movements
+            # set invoice as current operation
+            session.operation_id = invoice_id
+            # redirect to movements edition
+            redirect(URL(c="operations", f="movements"))
+            
+    return dict(customer_form = customer_form, \
+    billing_form = billing_form)
