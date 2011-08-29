@@ -24,7 +24,7 @@ db.define_table('journal_entry',
     Field('code', unique = True),
     Field('description', type='string', length=50, comment='Description'),
     Field('number', type='integer', default=0),
-    Field('posted', type='datetime'),
+    Field('posted', type='datetime', default=request.now),
     Field('source'),
     Field('valuation', type='datetime'),
     Field('type', type='string', length=1), # reference?
@@ -33,4 +33,3 @@ db.define_table('journal_entry',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
- 

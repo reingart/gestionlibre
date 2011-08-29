@@ -2,6 +2,7 @@
 # intente algo como
 
 import datetime
+from operations import process
 
 @auth.requires_login()
 def index():
@@ -62,7 +63,7 @@ def movements():
         # TODO: incomplete
         # do not expose if operation was already processed
         # process/validate the operation
-        if process(operation_id):
+        if process(db, session, operation_id):
             response.flash = "Operation processed"
         else:
             response.flash = "Could not process the operation"

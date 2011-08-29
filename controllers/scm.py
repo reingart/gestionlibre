@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # intente algo como
 import datetime
+from operations import process
 
 # list of orderable concepts
 # returns a dict with value, name pairs for
@@ -408,7 +409,7 @@ def receipt():
         # Balance movements
         # Call common operation process
         # Check as processed or return errors
-        if process(operation_id):
+        if process(db, session, operation_id):
             operation.update_record(processed = True)
             response.flash="Receipt processed"
         else:
