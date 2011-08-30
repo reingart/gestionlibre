@@ -1,0 +1,7 @@
+{{extend 'layout.html'}}
+<h1>Current account report</h1>
+{{=query_form}}
+{{if operations is not None:}}
+{{=operations}}
+Total debt: {{=total_debt}}
+{{pass}}
