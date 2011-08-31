@@ -351,31 +351,51 @@ def update_order_allocation():
     return dict(order_allocation = order_allocation, movements = movements)
 
 def packing_slip():
-    order_allocation_id = request.args[1]
-    order_allocation = db.operation[order_allocation_id]
-    # copy the allocation data to the new packing slip
-    # TODO: user/configuration document selection
-    packing_slip_id = db.operation.insert(\
-    customer_id = order_allocation.customer_id, \
+    """Create a packing slip from order allocation 
+    operation.
+    """
+    packing_slip_id = None    
     document_id = db(db.document.packing_slips == True).select(\
-    ).first().document_id)
-    # TODO: fill packing slip with allocation movements
-    for m in db(db.movement.operation_id == order_allocation_id).select():
-        db.movement.insert(operation_id = packing_slip_id, \
-        quantity = m.quantity, \
-        value = m.value, concept_id = m.concept_id)
+        ).first().document_id
+        
+    if len(request.args) > 0:
+        order_allocation_id = request.args[1]
+        order_allocation = db.operation[order_allocation_id]
+        # copy the allocation data to the new packing slip
+        # TODO: user/configuration document selection
+        # and custom packing slip source and items   
+    
+        packing_slip_id = db.operation.insert(\
+        customer_id = order_allocation.customer_id, \
+        document_id = document_id)
+        # TODO: fill packing slip with allocation movements
+        for m in db(db.movement.operation_id == order_allocation_id).select():
+            db.movement.insert(operation_id = packing_slip_id, \
+            quantity = m.quantity, \
+            value = m.value, concept_id = m.concept_id)
 
+        packing_slip_form = crud.update(db.operation, packing_slip_id)
+        order_allocation.update_record(processed = True)
+
+    else:
+        packing_slip_form = crud.create(db.operation)
+        packing_slip_form.vars.document_id = document_id
+    
+    if packing_slip_form.accepts(request.vars, session):
+        # web2py stores the created record id as "id"
+        # instead of using the table field definition
+        packing_slip_id = packing_slip_form.vars.id
+        packing_slip_form = crud.update(db.operation, packing_slip_id)
+        
     movements = SQLTABLE(db(\
     db.movement.operation_id == packing_slip_id).select(), \
     columns=["movement.movement_id", "movement.code","movement.concept_id", \
     "movement.quantity"], headers={"movement.movement_id": "ID", \
     "movement.code": "Code", \
-    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, \
-    linkto=URL(c="operations", f="movements_modify_element"))
-        
-    order_allocation.update_record(processed = True)
-    return dict(packing_slip = crud.update(db.operation, packing_slip_id), \
-    movements = movements)
+    "movement.concept_id": "Concept", "movement.quantity": "Quantity"})
+    
+    return dict(packing_slip_form = packing_slip_form, \
+    movements = movements, packing_slip_id = packing_slip_id)
 
 def receipt():
     """    Get or create a new receipt.
@@ -540,12 +560,12 @@ def product_billing():
         q &= db.operation.document_id == db.document.document_id
         q &= db.document.packing_slips == True
         packing_slips = db(q).select()
-        session.customer_id = request.vars.customer
-        session.subcustomer_id = request.vars.subcustomer
+        customer_id = session.customer_id = request.vars.customer_id
+        subcustomer_id = session.subcustomer_id = request.vars.subcustomer_id
         
     # create packing slips table for selection
     # and the actual billing form
-    # TODO: present new fashion third party widgets for multiselect box
+    # TODO: present new eyecandy third party widgets for multiselect box
     for row in packing_slips:    
         packing_slips_rows.append(TR(TD(row.operation.operation_id), \
         TD(row.operation.posted), \
@@ -555,11 +575,12 @@ def product_billing():
     
     documents = db(db.document.invoices == True).select()
     document_options = [OPTION(document.description, _value=document.document_id) for document in documents]
-            
+
     billing_form = FORM(TABLE(THEAD(TR(TH("Operation"),TH("Posted"), \
     TH("Code"), TH("Description"), TH("Bill"))), \
     TBODY(*packing_slips_rows), \
-    TFOOT(TR(TD(), TD(), TD(), TD(LABEL("Choose a document type", _for="document_id"), SELECT(*document_options, _name="document_id")), \
+    TFOOT(TR(TD(), TD(), TD(), TD(LABEL("Choose a document type", \
+    _for="document_id"), SELECT(*document_options, _name="document_id")), \
     TD(INPUT(_value="Bill checked", _type="submit"))))))
 
     # operations marked for billing    
@@ -572,12 +593,14 @@ def product_billing():
                 bill_items.append(int(v.split("_")[1]))
         if len(bill_items) > 0:
             # create an invoice  with the collected data
-            invoice_id = db.operation.insert(document_id = request.vars.document_id, customer_id = customer_id, subcustomer_id =  subcustomer_id)
+            invoice_id = db.operation.insert(document_id = request.vars.document_id, \
+            customer_id = customer_id, subcustomer_id =  subcustomer_id)
             # fill the invoice
             for packing_slip_id in bill_items:
                 packing_slip_items = db(db.movement.operation_id == packing_slip_id).select()
                 for movement in packing_slip_items:
-                    db.movement.insert(operation_id = invoice_id, concept_id = movement.concept_id, amount = movement.amount, value = movement.value, quantity = movement.quantity)
+                    db.movement.insert(operation_id = invoice_id, concept_id = movement.concept_id, \
+                    amount = movement.amount, value = movement.value, quantity = movement.quantity)
                 # check the packing slip as processed
                 db.operation[packing_slip_id].update_record(processed = True)
 
