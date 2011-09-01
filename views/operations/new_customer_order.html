@@ -1,0 +1,26 @@
+{{extend 'layout.html'}}
+{{=H1("Edit order number "+ str(order.id))}}
+{{if customer:}}
+<h3>Customer: {{=customer.legal_name}}</h3>
+<span>{{=reset}}</span> <span>Order number: {{=order.operation_id}}</span> | <span>Code: {{=order.code}}</span> | <span>Description: {{=order.description}}</span> | <span>Date: {{=str(order.posted)}}</span>  | <span>{{=A("Customer control panel", _href=URL(c="crm", f="customer_panel"))}}</span>
+{{=HR()}}
+
+<!-- Add order type options to sqlform object-->
+{{for k, v in order_options.iteritems(): }}
+
+{{if v["checked"]:}}
+{{ form[0].insert(-1, TR(LABEL(v["label"]), XML("<input type=radio name=%s value=%s checked />" % (v["name"], v["value"])))) }}
+{{else:}}
+{{ form[0].insert(-1, TR(LABEL(v["label"]), XML("<input type=radio name=%s value=%s />" % (v["name"], v["value"])))) }}
+{{pass}}
+
+{{pass}}
+<!-- End Add order type options to sqlform object-->
+
+{{=form}}
+{{=HR()}}
+<h3>Insert order element</h3>
+{{=LOAD(c="operations", f="new_customer_order_element.load", ajax=True)}}
+{{else:}}
+{{=P("You have not specified you firm's TAX ID. Please visit the ", A(EM("Post registration form"), _href=URL(c="registration", f="post_register_specify_firm")), " and try again")}}
+{{pass}}
