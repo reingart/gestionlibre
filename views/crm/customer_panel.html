@@ -1,10 +1,10 @@
 {{extend 'layout.html'}}
 <h1>Customer Panel</h1>
 {{if customer:}}
-<span>Firm: {{=customer.legal_name}}</span> | <span>TAX ID: {{=customer.tax_identification}}</span> | <span>Sales contact: {{=customer.salesperson_id}}</span> | <span>{{=A("Create/Edit orders", _href=URL(c="scm", f="new_customer_order"))}}</span>
+<span>Firm: {{=customer.legal_name}}</span> | <span>TAX ID: {{=customer.tax_identification}}</span> | <span>Sales contact: {{=customer.salesperson_id}}</span> | <span>{{=A("Create/Edit orders", _href=URL(c="operations", f="new_customer_order"))}}</span>
 {{=H3("Order list")}}
 {{=SQLTABLE(customer_orders, columns=["operation.operation_id", "operation.code","operation.description","operation.posted"], headers={
-"operation.operation_id": "Edit", "operation.code": "Code","operation.description": "Description","operation.posted": "Posted"}, linkto=URL(f="new_customer_order"))}}
+"operation.operation_id": "Edit", "operation.code": "Code","operation.description": "Description","operation.posted": "Posted"}, linkto=URL(c="operations", f="new_customer_order"))}}
 <!-- {{=BEAUTIFY(response._vars)}} -->
 {{else:}}
 {{=P("You have not specified you firm's TAX ID. Please visit the ", A(EM("Post registration form"), _href=URL(c="registration", f="post_register_specify_firm")), " and try again")}}
