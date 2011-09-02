@@ -56,14 +56,17 @@ def movements():
 
     # get the current operation if stored in session
     operation_id = session.get("operation_id", None)
+
+    # Get the operation id requested
+    # (assuming that an operation was specified)
+    if len(request.args) > 0:
+        session.operation_id = operation_id = int(request.args[1])
     
-    # if the user started a new operation, or none was
+    # Otherwise, if the user started a new operation, or none was
     # specified, create one
-    if ("new" in request.vars) or (operation_id is None):
+    elif ("new" in request.vars) or (operation_id is None):
         session.operation_id = operation_id = db.operation.insert(\
         user_id = auth.user_id)
-    elif len(request.args) > 0:
-        session.operation_id = operation_id = int(request.args[1])
 
     # standard operation update sqlform
     # TODO: operation change shouldn't be allowed if processed
