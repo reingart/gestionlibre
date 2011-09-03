@@ -134,7 +134,7 @@ def stock():
         (db.stock.warehouse_id == request.vars.warehouse\
         )).select().first()
         if stock_item is None:
-            stock_item_id = stock_item.insert(\
+            stock_item_id = db.stock.insert(\
             warehouse_id = request.vars.warehouse, \
             concept_id = request.vars.product, value = 0.0)
         else:
