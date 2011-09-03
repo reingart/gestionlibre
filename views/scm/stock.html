@@ -1,0 +1,8 @@
+{{extend 'layout.html'}}
+<h1>Stock</h1>
+{{=stock_query_form}}
+{{=HR()}}
+{{if stock_list is not None:}}
+{{=stock_list}}
+{{pass}}
+
