@@ -10,9 +10,11 @@ def setup():
     accounts = list()
     return dict(message="Done", records = records, tables = tables)
 
+
 def options():
     the_options = db(db.option).select()
     return dict(options = the_options)
+
 
 def option():
     if len(request.args) > 0:
@@ -23,6 +25,7 @@ def option():
         form = crud.create(db.option)
 
     return dict(form = form)
+
 
 def initialize():
     message = ""

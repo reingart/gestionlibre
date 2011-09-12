@@ -47,6 +47,6 @@ db.define_table('concept',
     Field('discounts', type='boolean', default=False),
     Field('surcharges', type='boolean', default=False),
     Field('replica', type='boolean', default=False),
-    Field('orderable', 'boolean', default=False), # can be ordered/bought
+    Field('orderable', 'boolean', default=False), # can be ordered/bought, do not use, filter concepts by internal property
     format='%(description)s',
     migrate=migrate)
