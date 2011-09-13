@@ -2,15 +2,15 @@
 # intente algo como
 
 import datetime
-from operations import process
 
+operations = local_import("operations")
 
 # list of orderable concepts
 # returns a dict with value, name pairs for
 # IS_IN_SET validator
 def orderable_concepts(limit_by = None):
     the_dict = dict()
-    rows = db(db.concept.orderable == True).select()
+    rows = db(db.concept.internal == False).select()
     for n, row in enumerate(rows):
         if (n < limit_by) or (limit_by is None):
             the_dict[row.concept_id] = row.description
@@ -48,7 +48,7 @@ def index():
 # base web interface for movements
 # administration
 @auth.requires_login()
-def movements():
+def ria_movements():
     # reset the current operation (sent client-side)
     reset_operation_form = FORM(INPUT(_type="submit", _value="Reset operation"))
     if reset_operation_form.accepts(request.vars, formname="reset_operation"):
@@ -81,7 +81,7 @@ def movements():
         # TODO: incomplete
         # do not expose if operation was already processed
         # process/validate the operation
-        if process(db, session, operation_id):
+        if operations.process(db, session, operation_id):
             response.flash = "Operation processed"
         else:
             response.flash = "Could not process the operation"
@@ -132,7 +132,7 @@ def operation_installment():
         try:
             total += float(mov.value) * float(mov.quantity)
         except (ValueError, TypeError):
-            # TODO: adding error warning/andling
+            # TODO: add error warning/handling
             pass
 
     # installment creation form
@@ -162,7 +162,7 @@ def operation_installment():
 
 
 @auth.requires_login()
-def new_customer_order():
+def ria_new_customer_order():
     """ Customer's ordering on-line form.
     Note: get db objects with db(query).select()
     i.e. contact.customer returns the db record id """
@@ -498,7 +498,7 @@ def packing_slip():
     return dict(packing_slip_form = packing_slip_form, \
     movements = movements, packing_slip_id = packing_slip_id)
 
-def receipt():
+def ria_receipt():
     """    Get or create a new receipt.
     Presents a one-view multi-form receipt
     for customer payments
@@ -530,7 +530,7 @@ def receipt():
         # Balance movements
         # Call common operation process
         # Check as processed or return errors
-        if process(db, session, operation_id):
+        if operations.process(db, session, operation_id):
             operation.update_record(processed = True)
             response.flash="Receipt processed"
         else:
@@ -638,7 +638,7 @@ def list_receipts():
     headers = headers, linkto=URL(c="operations", f="movements"))
     return dict(receipts = receipts)
 
-def product_billing():
+def ria_product_billing():
     """ Presents a packing slips list for billing
     and collects billing details. Creates an invoice
     and redirects the action to the movements update form.

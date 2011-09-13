@@ -6,7 +6,7 @@ from operations import process
 def index():
     return dict()
 
-def stock():
+def ria_stock():
     stock_list = None
     stock_query_form = SQLFORM.factory(
     Field('warehouse', 'reference warehouse', \

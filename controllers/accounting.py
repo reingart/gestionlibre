@@ -42,6 +42,82 @@ def entry():
     return dict(entry = entry)
 
 
+def switch_value_list():
+    """ List of swich value options """
+    rows = db(db.option).select()
+    offset_account_list = []
+    for r in rows:
+        if "switch_value" in r.name:
+            # add option to list
+            switch_value_list.append(r)
+    return dict(switch_value_list = switch_value_list)
+
+
+def switch_value():
+    """ Create or modify a switch value option
+    
+    Get the form values or action args for option
+    selection and modify or create the parameters.
+    Switch value is either 1 or -1
+    """
+    
+    option = None
+    fields_values = {"account": None, "document": None, \
+    "type": None, "switch": None}
+    if len(request.args) >= 2:
+        option = db.option[request.args[1]]
+        # option kind - values separation -> values
+        tmp_str = option.name.split("____")[1]
+        # k, v pairs separation -> list
+        tmp_str_2 = tmp_str.split("___")
+        for k__v in tmp_str_2:
+            # Get the k, v pair stored as k__v string
+            tmp_str_3 = k__v.split("__")
+            fields_values[tmp_str_3[0]] = int(tmp_str_3[1])
+            # Get the offset account stored value
+            fields_values["value"] = int(option.value)
+            
+    switch_form = SQLFORM.factory(
+    Field("account", requires=IS_IN_DB(db(db.account), \
+    "account.account_id", "%(description)s")), \
+    Field("document", requires=IS_IN_DB(db(db.document), \
+    "document.document_id", "%(description)s")), \
+    Field("type", requires=IS_IN_SET({'T': 'Stock','S': 'Sales','P': 'Purchases'})), \
+    Field("switch", requires=IS_IN_SET({1: 'False',-1: 'True'})))
+
+    for k, v in fields_values.iteritems():
+        switch_form.vars[k] = v
+    
+    if switch_form.accepts(request.vars, session, \
+    keepvalues = True, formname="switch_form"):
+        # retrieve the db record
+        tmp_text_value = "switch_value____"
+        
+        # complete the compound option name field
+        for k in request.vars:
+            if (not k=="switch") and (not k.startswith("_")):
+                tmp_text_value += k + "__" + str(request.vars[k]) + "___"
+        if len(request.vars) > 1:
+            tmp_text_value = tmp_text_value[:-3]
+            
+        # Get option record with the compound name value
+        option = db(db.option.name == tmp_text_value).select().first()
+            
+        # the switch value
+        switch_value = int(request.vars["switch"])
+        
+        # create record if empty or modify current
+        if option is None:
+            db.option.insert(name = tmp_text_value, \
+            value = switch_value)
+            response.flash = "New option created."
+        else:
+            option.update_record(name = tmp_text_value, value = switch_value)
+            response.flash = "Option modified."
+    
+    return dict(switch_form = switch_form)
+
+
 def offset_accounts():
     """ List of offset accounts """
     rows = db(db.option).select()
