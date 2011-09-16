@@ -17,7 +17,7 @@ db.define_table('concept',
     Field('amount', type='double', default=0),
     Field('addition', type='date'),
     Field('deletion', type='date'),
-    Field('tax_id', 'reference tax'), # reference
+    Field('tax_id', 'reference concept'), # self table reference
     Field('supplier_id', 'integer'), # reference
     Field('customer_id', 'integer'), # reference
     Field('account_id', 'reference account'),# reference
@@ -50,3 +50,5 @@ db.define_table('concept',
     Field('orderable', 'boolean', default=False), # can be ordered/bought, do not use, filter concepts by internal property
     format='%(description)s',
     migrate=migrate)
+
+db.concept.tax_id.requires = IS_IN_DB(db(db.concept.tax == True), "concept.concept_id", "%(description)s")

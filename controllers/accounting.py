@@ -45,7 +45,7 @@ def entry():
 def switch_value_list():
     """ List of swich value options """
     rows = db(db.option).select()
-    offset_account_list = []
+    switch_value_list = []
     for r in rows:
         if "switch_value" in r.name:
             # add option to list
@@ -53,6 +53,9 @@ def switch_value_list():
     return dict(switch_value_list = switch_value_list)
 
 
+# This aproach shouldn't be used because
+# operation value sign is computed from
+# recorded concept properties
 def switch_value():
     """ Create or modify a switch value option
     
@@ -118,27 +121,27 @@ def switch_value():
     return dict(switch_form = switch_form)
 
 
-def offset_accounts():
-    """ List of offset accounts """
+def offset_concepts():
+    """ List of default offset concepts """
     rows = db(db.option).select()
-    offset_account_list = []
+    offset_concept_list = []
     for r in rows:
-        if "offset_account" in r.name:
+        if "offset_concept" in r.name:
             # add option to list
-            offset_account_list.append(r)
-    return dict(offset_account_list = offset_account_list)
+            offset_concept_list.append(r)
+    return dict(offset_concept_list = offset_concept_list)
 
 
-def offset_account():
-    """ Create or modify an offset account option
+def offset_concept():
+    """ Create or modify a default offset concept
     
     Get the form values or action args for option
     selection and modify or create the parameters.
     """
     
     option = None
-    fields_values = {"account": None, "document": None, \
-    "offset": None, "payment_terms": None}
+    fields_values = {"document": None, \
+    "offset": None, "payment_terms": None, "type": None}
     if len(request.args) >= 2:
         option = db.option[request.args[1]]
         # option kind - values separation -> values
@@ -149,18 +152,19 @@ def offset_account():
             # Get the k, v pair stored as k__v string
             tmp_str_3 = k__v.split("__")
             fields_values[tmp_str_3[0]] = int(tmp_str_3[1])
-            # Get the offset account stored value
+            # Get the offset concept stored value
             fields_values["offset"] = int(option.value)
             
     offset_form = SQLFORM.factory(
-    Field("account", requires=IS_IN_DB(db(db.account), \
-    "account.account_id", "%(description)s")), \
     Field("document", requires=IS_IN_DB(db(db.document), \
     "document.document_id", "%(description)s")), \
     Field("payment_terms", requires=IS_IN_DB(db(db.payment_terms), \
     "payment_terms.payment_terms_id", "%(description)s")), \
-    Field("offset", requires=IS_IN_DB(db(db.account), \
-    "account.account_id", "%(description)s")))
+    Field("offset", requires=IS_IN_DB(db(db.concept), \
+    "concept.concept_id", "%(description)s")), \
+    Field("type", requires=IS_IN_SET({"S": "Sales", \
+    "P": "Purchases", "T": "Stock"})), \
+    )
 
     for k, v in fields_values.iteritems():
         offset_form.vars[k] = v
@@ -168,7 +172,7 @@ def offset_account():
     if offset_form.accepts(request.vars, session, \
     keepvalues = True, formname="offset_form"):
         # retrieve the db record
-        tmp_text_value = "offset_account____"
+        tmp_text_value = "offset_concept____"
         
         # complete the compound option name field
         for k in request.vars:
@@ -180,7 +184,7 @@ def offset_account():
         # Get option record with the compound name value
         option = db(db.option.name == tmp_text_value).select().first()
             
-        # the offset account
+        # the offset concept
         offset_id = int(request.vars["offset"])
         
         # create record if empty or modify current

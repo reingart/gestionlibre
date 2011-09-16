@@ -713,3 +713,207 @@ def ria_product_billing():
 
     return dict(customer_form = customer_form, \
     billing_form = billing_form)
+
+
+###############################################
+#### Sequential operation processing (no ria) #
+###############################################
+
+def movements_start():
+    """ Initial operation form """
+    
+    form = SQLFORM.factory(Field("type", \
+    requires=IS_IN_SET({"T": "Stock", "S": \
+    "Sales", "P": "Purchases"}), \
+    comment="Select an operation type"), Field("description"))
+    
+    if form.accepts(request.vars, session):
+        # new operation
+        session.operation_id = db.operation.insert( \
+        type=request.vars.type, \
+        description = request.vars.description)
+        redirect(URL(f="movements_header"))
+    return dict(form = form)
+
+    
+def movements_header():
+    """ Collect or modify operation basic data"""
+
+    operation_id = session.operation_id
+    operation = db.operation[operation_id]
+    
+    if operation.type == "S":
+        fields = ["code", "description", "customer_id", "detail", "payment_terms_id", "term", "document_id", "branch", "due_date", "voided", "fund_id", "cost_center_id", "observations", "subcustomer_id", "salesperson_id", "jurisdiction_id"]
+    elif operation.type == "T":
+        fields = []
+    elif opertaion.type == "P":
+        fields = []
+        
+    form = SQLFORM(db.operation, operation_id, fields = fields)
+    if form.accepts(request.vars, session):
+        if operation.type == "S":
+            redirect(URL(f="movements_price_list"))
+        else:
+            redirect(URL(f="movements_detail"))
+        
+    return dict(form = form, operation = operation)
+
+
+def movements_price_list():
+    form = SQLFORM.factory(Field("price_list", requires = IS_IN_DB(db(db.price_list), "price_list.price_list_id", "%(description)s")))
+    if form.accepts(request.vars, session):
+        session.price_list_id = request.vars.price_list
+        redirect(URL(f="movements_detail"))
+    return dict(form = form)
+
+
+def movements_detail():
+    """ List of operation items
+    
+    A user interface to manage movements
+    """
+    
+    operation_id = session.operation_id
+    operation = db.operation[operation_id]
+    
+    # { header:table, ... h:t} dictionary
+    movements = dict()
+    
+    # Items (Products/Services/Discounts ...)
+    q = db.movement.concept_id == db.concept.concept_id
+    q &= db.concept.internal != True
+    q &= db.movement.operation_id == operation_id
+    
+    s = db(q)
+    columns = ["movement.movement_id", "movement.code", "movement.description", "movement.concept_id", "movement.quantity", "movement.value", "movement.amount"]
+    headers = {"movement.movement_id": "Edit", "movement.code": "Code", "movement.description": "Description", "movement.concept_id": "Concept", "movement.quantity": "Quantity", "movement.value": "Value", "movement.amount": "Amount"}
+    
+    rows = s.select()
+    movements["items"] = SQLTABLE(rows, columns = columns, headers = headers)
+   
+    # Payments
+    q = db.movement.concept_id == db.concept.concept_id
+    q &= db.concept.banks != True
+    q &= db.concept.payment_method == True
+    q &= db.movement.operation_id == operation_id
+    
+    s = db(q)
+    
+    rows = s.select()
+    movements["payments"] = SQLTABLE(rows, columns = columns, headers = headers)
+
+    # Checks
+    q = db.movement.concept_id == db.concept.concept_id
+    q &= db.concept.banks == True
+    q &= db.movement.operation_id == operation_id
+    
+    s = db(q)
+
+    rows = s.select()
+    movements["checks"] = SQLTABLE(rows, columns = columns, headers = headers)
+    
+    # Taxes
+    q = db.movement.concept_id == db.concept.concept_id
+    q &= db.concept.tax == True
+    q &= db.movement.operation_id == operation_id
+    s = db(q)
+    
+    rows = s.select()
+    movements["taxes"] = SQLTABLE(rows, columns = columns, headers = headers)
+    
+    return dict(operation = operation, movements = movements)
+
+
+def movements_add_item():
+    """ Ads an item movement to the operation. """
+    
+    operation_id = session.operation_id
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+
+    price_list_id = session.get("price_list_id", None)
+    
+    if price_list_id is not None:
+        price_list = db.price_list[price_list_id]
+    else:
+        price_list = None
+        
+    form = SQLFORM.factory(Field("item", \
+    requires=IS_IN_DB(db(db.concept.internal != True), \
+    "concept.concept_id", "%(description)s")), \
+    Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6)))
+
+    if form.accepts(request.vars, session):
+        # Get the concept record
+        concept = db.concept[request.vars.item]
+        concept_id = concept.concept_id
+        quantity = float(request.vars.quantity)
+        
+        # Calculate price, value, quantity, amount
+        if price_list is not None:
+            price = db((db.price.price_list_id == price_list_id \
+            ) & (db.price.concept_id == concept_id)).select().first()
+            value = price.value
+            amount = value * quantity
+
+        # Create the new operation item
+        db.movement.insert(operation_id = operation_id, \
+        amount = amount, value = value, concept_id = concept_id, \
+        quantity = quantity)
+        
+        # Update tax data
+        tax_items = movements_taxes(operation_id)
+        redirect(URL(f="movements_detail"))
+
+    return dict(form = form)
+
+
+def movements_taxes(operation_id):
+    """ Performs tax operations for the given operation """
+    
+    # TODO: clean zero amount tax items
+    # WARNING: ¿db.table[0] returns None?
+    
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+    # number of tax items
+    items = 0
+    taxes = dict()
+    data = list()
+    for movement in db(db.movement.operation_id == operation_id).select():
+        # Compute the tax values if required
+        concept = db(db.concept.concept_id == movement.concept_id).select().first()
+        amount = movement.amount
+        if (concept is not None) and (concept.taxed):
+            tax = db.concept[concept.tax_id]
+            tax_amount = (float(amount) * float(tax.amount)) - float(amount)
+            try:
+                taxes[tax.concept_id] += tax_amount
+            except KeyError:
+                taxes[tax.concept_id] = tax_amount
+                
+            if not document.discriminate:
+                # add to item amount if not discriminated            
+                movement.amount += tax_amount
+                movement.value = movement.value * tax.amount
+
+    for tax_concept_id in taxes:
+        tax = db.concept[tax_concept_id]
+        # Get and increase or create tax item
+        if document.discriminate:
+            tax_record = db(( \
+            db.movement.concept_id == tax_concept_id) & ( \
+            db.movement.operation_id == operation_id \
+            )).select().first()
+        
+            if tax_record is None:
+                tax_record_id = db.movement.insert( \
+                operation_id = operation_id, \
+                value = taxes[tax_concept_id], amount = taxes[tax_concept_id], \
+                concept_id = tax_concept_id)
+                tax_record = db.movement[tax_record_id]
+            else:
+                tax_record.amount = taxes[tax_concept_id]
+                tax_record.value = taxes[tax_concept_id]
+    items = len(taxes)
+    return items
