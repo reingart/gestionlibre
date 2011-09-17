@@ -146,7 +146,7 @@ def operation_installment():
         supplier_id = operation.supplier_id, fee_id = request.vars.fee_id)
         
         # quota amount = total / quotas
-        quota_amount = total / int(request.vars.quotas)
+        quota_amount = total / float(request.vars.quotas)
         quotas_list = list()
         for x in range(int(request.vars.quotas)):
             quotas_list.append(db.quota.insert(installment_id = installment_id, \
@@ -803,14 +803,19 @@ def movements_detail():
     movements["payments"] = SQLTABLE(rows, columns = columns, headers = headers)
 
     # Checks
-    q = db.movement.concept_id == db.concept.concept_id
-    q &= db.concept.banks == True
-    q &= db.movement.operation_id == operation_id
-    
+    q = db.bank_check.operation_id == operation_id
     s = db(q)
 
     rows = s.select()
-    movements["checks"] = SQLTABLE(rows, columns = columns, headers = headers)
+    movements["checks"] = SQLTABLE(rows, columns = [
+        "bank_check.bank_check_id", "bank_check.bank_id", \
+        "bank_check.due_date", \
+        "bank_check.number", "bank_check.amount"
+        ],
+        headers = {
+        "bank_check.bank_check_id": "Edit", "bank_check.bank_id": "Bank", "bank_check.due_date": "Due date", \
+        "bank_check.number": "Number", "bank_check.amount": "Amount"
+        })
     
     # Taxes
     q = db.movement.concept_id == db.concept.concept_id
@@ -872,7 +877,7 @@ def movements_taxes(operation_id):
     """ Performs tax operations for the given operation """
     
     # TODO: clean zero amount tax items
-    # WARNING: ¿db.table[0] returns None?
+    # WARNING: db.table[0] returns None
     
     operation = db.operation[operation_id]
     document = db.document[operation.document_id]
@@ -917,3 +922,132 @@ def movements_taxes(operation_id):
                 tax_record.value = taxes[tax_concept_id]
     items = len(taxes)
     return items
+
+def movements_add_check():
+    operation_id = session.operation_id
+    
+    """ Adds a check for any operation type """
+    # TODO: select different fields for each operation type
+    # add own for company checks
+    fields = [
+    "number", "bank_id", "customer_id", "supplier_id", "amount", \
+    "due_date", "checkbook_id"
+    ]
+    form = SQLFORM(db.bank_check, fields=fields)
+    form.vars.operation_id = operation_id
+    if form.accepts(request.vars, session):
+        checks = movements_checks(operation_id)
+        redirect(URL(f="movements_detail"))
+    return dict(form = form)
+
+def movements_checks(operation_id):
+    """ Movements check processing """
+    # TODO: erease checks movement if amount is 0
+    checks = db(db.bank_check.operation_id == operation_id).select()
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+    if operation.type == "S":
+        concept_id = db( \
+        db.option.name == "sales_check_input_concept" \
+        ).select().first().value
+    elif operation.type == "P":
+        pass
+    elif operation.type == "T":
+        pass
+    # get or create the movement
+    q = db.movement.operation_id == operation_id
+    q &= db.movement.concept_id == concept_id
+    s = db(q)
+    if checks > 0:
+        row = s.select().first()
+        if (row is None):
+            row = db.movement.insert(operation_id = operation_id, \
+            concept_id = concept_id)
+        row.update_record(amount = sum([check.amount for check in checks]))
+    return len(checks)
+
+
+def movements_current_account_concept():
+    """ Manage current account payment/quotas """
+    operation_id = session.operation_id
+    # calculate the amount for payment
+    session.difference = movements_difference(operation_id)
+    # create quotas based on user input
+    # (for quotas number > 0)
+    # define number of quotas and due dates
+    session.quota_frequence = datetime.timedelta(int(db( \
+    db.option.name == "quota_frequence").select().first().value))
+    session.today = datetime.date.today()
+
+    if session.difference <= 0:
+        # return 0 amount message and cancel
+        redirect(URL(f="movements_detail"))
+
+    # Current account concepts dal set
+    q = db.concept.current_account == True
+    s = db(q)
+
+    form = SQLFORM.factory(Field("concept", "reference concept", \
+    requires = IS_IN_DB(s, "concept.concept_id", "%(description)s")))
+
+    if form.accepts(request.vars, session, formname="concept_form"):
+        session.current_account_concept_id = int(request.vars.concept)
+        redirect(URL(f="movements_current_account_quotas"))
+
+    return dict(form = form)
+
+def movements_current_account_quotas():
+    form = SQLFORM.factory(Field("number_of_quotas", \
+    "integer", requires = IS_INT_IN_RANGE(1, 1e3)))
+
+    if form.accepts(request.vars, session, \
+    formname="quotas_number_form"):
+        session.current_account_quotas = int(request.vars.number_of_quotas)
+        redirect(URL(f="movements_current_account_data"))
+    return dict(form = form)
+
+def movements_current_account_data():
+    amount_fields = [Field("quota_%s_amount" % (x+1), \
+    "double", requires=IS_FLOAT_IN_RANGE(0, 1e6), \
+    default=(session.difference/float(session.current_account_quotas))) for x in range(session.current_account_quotas)]
+    due_date_fields = [Field("quota_%s_due_date" % (x+1), \
+    "date", default=session.today+(session.quota_frequence*x)) for x in range(session.current_account_quotas)]
+    form_fields = []
+
+    for x in range(session.current_account_quotas):
+        form_fields.append(amount_fields[x])
+        form_fields.append(due_date_fields[x])
+
+        form = SQLFORM.factory(*form_fields)
+        if form.accepts(request.vars, session, formname="quotas_data_form"):
+            # create or modify the payment movements and quotas
+            due_dates = dict()
+            amounts = dict()
+            for var in request.vars:
+                if var.endswith("amount"):
+                    amounts[var.split("_")[1]] = float(request.vars[var])
+                elif var.endswith("due_date"):
+                    due_dates[var.split("_")[1]] = request.vars[var]
+            for quota, amount in amounts.iteritems():
+                # insert quota
+                # insert movement
+                # insert payments/plans
+                pass
+            response.flash = "Current account payment accepted (incomplete)"
+    return dict(form = form)
+
+
+def movements_difference(operation_id):
+    # None for unresolved amounts
+    difference = 1000 # dummy value
+    operation = db.operation[operation_id]
+    
+    if operation == "S":
+        pass
+    elif operation == "P":
+        pass
+    elif operation == "T":
+        pass
+    
+    return difference
+    

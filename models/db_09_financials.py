@@ -5,6 +5,9 @@ migrate = True
 # check
 db.define_table('bank_check',
     Field('bank_check_id', 'id'),
+    Field('checkbook_id', 'reference checkbook', \
+    requires=IS_EMPTY_OR(IS_IN_DB(db(db.checkbook), \
+    "checkbook.checkbook_id", "%(description)s"))), # reference
     Field('code', unique = True),
     Field('description'),
     Field('customer_id', 'reference customer'), # reference
