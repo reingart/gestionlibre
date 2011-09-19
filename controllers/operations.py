@@ -743,7 +743,11 @@ def movements_header():
     operation = db.operation[operation_id]
     
     if operation.type == "S":
-        fields = ["code", "description", "customer_id", "detail", "payment_terms_id", "term", "document_id", "branch", "due_date", "voided", "fund_id", "cost_center_id", "observations", "subcustomer_id", "salesperson_id", "jurisdiction_id"]
+        fields = ["code", "description", "customer_id", \
+        "detail", "payment_terms_id", "term", "document_id", \
+        "branch", "due_date", "voided", "fund_id", \
+        "cost_center_id", "observations", "subcustomer_id", \
+        "salesperson_id", "jurisdiction_id"]
     elif operation.type == "T":
         fields = []
     elif opertaion.type == "P":
@@ -760,7 +764,9 @@ def movements_header():
 
 
 def movements_price_list():
-    form = SQLFORM.factory(Field("price_list", requires = IS_IN_DB(db(db.price_list), "price_list.price_list_id", "%(description)s")))
+    form = SQLFORM.factory(Field("price_list", \
+    requires = IS_IN_DB(db(db.price_list), \
+    "price_list.price_list_id", "%(description)s")))
     if form.accepts(request.vars, session):
         session.price_list_id = request.vars.price_list
         redirect(URL(f="movements_detail"))
@@ -774,33 +780,48 @@ def movements_detail():
     """
     
     operation_id = session.operation_id
+
+    # update operation values
+    update = movements_update(operation_id)
     operation = db.operation[operation_id]
-    
+
     # { header:table, ... h:t} dictionary
     movements = dict()
     
     # Items (Products/Services/Discounts ...)
     q = db.movement.concept_id == db.concept.concept_id
     q &= db.concept.internal != True
+    q &= db.concept.tax != True
     q &= db.movement.operation_id == operation_id
     
     s = db(q)
-    columns = ["movement.movement_id", "movement.code", "movement.description", "movement.concept_id", "movement.quantity", "movement.value", "movement.amount"]
-    headers = {"movement.movement_id": "Edit", "movement.code": "Code", "movement.description": "Description", "movement.concept_id": "Concept", "movement.quantity": "Quantity", "movement.value": "Value", "movement.amount": "Amount"}
+    columns = ["movement.movement_id", "movement.code", \
+    "movement.description", "movement.concept_id", \
+    "movement.quantity", "movement.value", "movement.amount"]
+    headers = {"movement.movement_id": "Edit", \
+    "movement.code": "Code", \
+    "movement.description": "Description", \
+    "movement.concept_id": "Concept", \
+    "movement.quantity": "Quantity", \
+    "movement.value": "Value", \
+    "movement.amount": "Amount"}
     
     rows = s.select()
-    movements["items"] = SQLTABLE(rows, columns = columns, headers = headers)
+    movements["items"] = SQLTABLE(rows, \
+    columns = columns, headers = headers)
    
     # Payments
     q = db.movement.concept_id == db.concept.concept_id
     q &= db.concept.banks != True
-    q &= db.concept.payment_method == True
+    q &= ((db.concept.payment_method == True) | ( \
+    db.concept.current_account == True))
     q &= db.movement.operation_id == operation_id
     
     s = db(q)
     
     rows = s.select()
-    movements["payments"] = SQLTABLE(rows, columns = columns, headers = headers)
+    movements["payments"] = SQLTABLE(rows, \
+    columns = columns, headers = headers)
 
     # Checks
     q = db.bank_check.operation_id == operation_id
@@ -813,8 +834,11 @@ def movements_detail():
         "bank_check.number", "bank_check.amount"
         ],
         headers = {
-        "bank_check.bank_check_id": "Edit", "bank_check.bank_id": "Bank", "bank_check.due_date": "Due date", \
-        "bank_check.number": "Number", "bank_check.amount": "Amount"
+        "bank_check.bank_check_id": "Edit", \
+        "bank_check.bank_id": "Bank", \
+        "bank_check.due_date": "Due date", \
+        "bank_check.number": "Number", \
+        "bank_check.amount": "Amount"
         })
     
     # Taxes
@@ -824,9 +848,11 @@ def movements_detail():
     s = db(q)
     
     rows = s.select()
-    movements["taxes"] = SQLTABLE(rows, columns = columns, headers = headers)
-    
-    return dict(operation = operation, movements = movements)
+    movements["taxes"] = SQLTABLE(rows, \
+    columns = columns, headers = headers)
+
+    return dict(operation = operation, \
+    movements = movements)
 
 
 def movements_add_item():
@@ -865,9 +891,7 @@ def movements_add_item():
         db.movement.insert(operation_id = operation_id, \
         amount = amount, value = value, concept_id = concept_id, \
         quantity = quantity)
-        
-        # Update tax data
-        tax_items = movements_taxes(operation_id)
+
         redirect(URL(f="movements_detail"))
 
     return dict(form = form)
@@ -885,22 +909,29 @@ def movements_taxes(operation_id):
     items = 0
     taxes = dict()
     data = list()
-    for movement in db(db.movement.operation_id == operation_id).select():
+    for movement in db(db.movement.operation_id == operation_id \
+    ).select():
         # Compute the tax values if required
-        concept = db(db.concept.concept_id == movement.concept_id).select().first()
+        concept = db(db.concept.concept_id == movement.concept_id \
+        ).select().first()
         amount = movement.amount
         if (concept is not None) and (concept.taxed):
             tax = db.concept[concept.tax_id]
-            tax_amount = (float(amount) * float(tax.amount)) - float(amount)
-            try:
-                taxes[tax.concept_id] += tax_amount
-            except KeyError:
-                taxes[tax.concept_id] = tax_amount
-                
+            # None taxes can occur if a
+            # concept is taxed but has no
+            # tax concept as reference
+            if tax is not None:
+                tax_amount = (float(amount) * float(tax.amount)) \
+                - float(amount)
+                try:
+                    taxes[tax.concept_id] += tax_amount
+                except KeyError:
+                    taxes[tax.concept_id] = tax_amount
+
             if not document.discriminate:
                 # add to item amount if not discriminated            
-                movement.amount += tax_amount
-                movement.value = movement.value * tax.amount
+                movement.amount = float(movement.amount) + tax_amount
+                movement.value = float(movement.value) * tax.amount
 
     for tax_concept_id in taxes:
         tax = db.concept[tax_concept_id]
@@ -910,16 +941,17 @@ def movements_taxes(operation_id):
             db.movement.concept_id == tax_concept_id) & ( \
             db.movement.operation_id == operation_id \
             )).select().first()
-        
+
             if tax_record is None:
                 tax_record_id = db.movement.insert( \
                 operation_id = operation_id, \
-                value = taxes[tax_concept_id], amount = taxes[tax_concept_id], \
-                concept_id = tax_concept_id)
+                value = taxes[tax_concept_id], \
+                amount = taxes[tax_concept_id], \
+                concept_id = tax_concept_id, quantity = 1)
                 tax_record = db.movement[tax_record_id]
+
             else:
-                tax_record.amount = taxes[tax_concept_id]
-                tax_record.value = taxes[tax_concept_id]
+                tax_record.update_record(amount = taxes[tax_concept_id], value = taxes[tax_concept_id])
     items = len(taxes)
     return items
 
@@ -936,7 +968,6 @@ def movements_add_check():
     form = SQLFORM(db.bank_check, fields=fields)
     form.vars.operation_id = operation_id
     if form.accepts(request.vars, session):
-        checks = movements_checks(operation_id)
         redirect(URL(f="movements_detail"))
     return dict(form = form)
 
@@ -998,7 +1029,7 @@ def movements_current_account_concept():
 
 def movements_current_account_quotas():
     form = SQLFORM.factory(Field("number_of_quotas", \
-    "integer", requires = IS_INT_IN_RANGE(1, 1e3)))
+    "integer", requires = IS_INT_IN_RANGE(0, 1e3)))
 
     if form.accepts(request.vars, session, \
     formname="quotas_number_form"):
@@ -1007,40 +1038,73 @@ def movements_current_account_quotas():
     return dict(form = form)
 
 def movements_current_account_data():
-    amount_fields = [Field("quota_%s_amount" % (x+1), \
-    "double", requires=IS_FLOAT_IN_RANGE(0, 1e6), \
-    default=(session.difference/float(session.current_account_quotas))) for x in range(session.current_account_quotas)]
-    due_date_fields = [Field("quota_%s_due_date" % (x+1), \
-    "date", default=session.today+(session.quota_frequence*x)) for x in range(session.current_account_quotas)]
-    form_fields = []
+    try:
+        amount_fields = [Field("quota_%s_amount" % (x+1), \
+        "double", requires=IS_FLOAT_IN_RANGE(0, 1e6), \
+        default=(session.difference / \
+        float(session.current_account_quotas))) \
+        for x in range(session.current_account_quotas)]
+        due_date_fields = [Field("quota_%s_due_date" % (x+1), \
+        "date", default=session.today+(session.quota_frequence*x)) \
+        for x in range(session.current_account_quotas)]
+        form_fields = []
+    except ZeroDivisionError:
+        # Zero quotas. Create the
+        # current account movement
+        # for the difference
+        db.movement.insert( \
+        concept_id = session.current_account_concept_id, \
+        amount = session.difference, value = session.difference, \
+        quantity = 1, operation_id = session.operation_id)
+        redirect(URL(f="movements_detail"))
 
     for x in range(session.current_account_quotas):
         form_fields.append(amount_fields[x])
         form_fields.append(due_date_fields[x])
 
-        form = SQLFORM.factory(*form_fields)
-        if form.accepts(request.vars, session, formname="quotas_data_form"):
-            # create or modify the payment movements and quotas
-            due_dates = dict()
-            amounts = dict()
-            for var in request.vars:
-                if var.endswith("amount"):
-                    amounts[var.split("_")[1]] = float(request.vars[var])
-                elif var.endswith("due_date"):
-                    due_dates[var.split("_")[1]] = request.vars[var]
-            for quota, amount in amounts.iteritems():
-                # insert quota
-                # insert movement
-                # insert payments/plans
-                pass
-            response.flash = "Current account payment accepted (incomplete)"
+    form = SQLFORM.factory(*form_fields)
+    if form.accepts(request.vars, session, formname="quotas_data_form"):
+        # create or modify the payment movements and quotas
+        due_dates = dict()
+        amounts = dict()
+        for var in request.vars:
+            if var.endswith("amount"):
+                amounts[var.split("_")[1]] = float(request.vars[var])
+            elif var.endswith("due_date"):
+                due_dates[var.split("_")[1]] = request.vars[var]
+        for quota, amount in amounts.iteritems():
+            # insert quota
+            # insert movement
+            db.movement.insert( \
+            concept_id = session.current_account_concept_id, \
+            amount = amount, value = amount, \
+            quantity = 1, operation_id = session.operation_id)
+            # insert payments/plans
+        redirect(URL(f="movements_detail"))
     return dict(form = form)
 
 
 def movements_difference(operation_id):
     # None for unresolved amounts
-    difference = 1000 # dummy value
+    difference = None
     operation = db.operation[operation_id]
+
+    # draft movements algorithm:
+    # difference = exit concepts - entry c.
+    q_entry = db.movement.concept_id == db.concept.concept_id
+    q_entry &= db.concept.entry == True
+    q_entry &= db.movement.operation_id == session.operation_id
+    
+    q_exit = db.movement.concept_id == db.concept.concept_id
+    q_exit &= db.concept.exit == True
+    q_exit &= db.movement.operation_id == session.operation_id    
+    
+    rows_entry = db(q_entry).select()
+    rows_exit = db(q_exit).select()
+    
+    difference = float(abs(sum([row.movement.amount for row in \
+    rows_exit], 0)) - abs(sum([row.movement.amount for row \
+    in rows_entry], 0)))
     
     if operation == "S":
         pass
@@ -1050,4 +1114,97 @@ def movements_difference(operation_id):
         pass
     
     return difference
+
+
+def movements_add_discount_surcharge():
+    """ Select discount to apply """
+    
+    # user input: concept, % or value, value, description
+    q = (db.concept.surcharges == True) | (db.concept.discounts == True)
+    form = SQLFORM.factory(Field('concept', requires = IS_IN_DB(db(q), \
+    "concept.concept_id", "%(description)s")), Field('percentage', \
+    'boolean'), Field('value', 'double'), Field('description'))
+    if form.accepts(request.vars, session):
+        if request.vars.percentage:
+            # TODO: refined discount/surcharge
+            # processing. Move total amount
+            # adding to function "total(operation_id)"
+            q = db.movement.concept_id == db.concept.concept_id
+            q &= db.movement.operation_id == session.operation_id
+            q &= db.concept.internal != True
+            q &= db.concept.tax != True
+            rows = db(q).select()
+            value = float(request.vars.value) * \
+            float(sum([abs(item.movement.amount) \
+            for item in rows])) / 100
+        else: value = float(request.vars.value)
+        
+        db.movement.insert(operation_id = session.operation_id, \
+        description = request.vars.description, quantity = 1, \
+        amount = value, value = value, \
+        concept_id = request.vars.concept)
+        redirect(URL(f="movements_detail"))
+    return dict(form = form)
+
+def movements_amount(operation_id):
+    """ Calculate the total amount of the operation"""
+
+    amount = None
+
+    q_items = db.movement.concept_id == db.concept.concept_id
+    q_items &= db.concept.internal != True
+    q_items &= db.concept.discounts != True
+    q_items &= db.concept.surcharges != True
+    q_items &= db.concept.current_account != True
+    q_items &= db.movement.operation_id == operation_id
+    
+    q_discounts = db.movement.concept_id == db.concept.concept_id
+    q_discounts &= db.concept.discounts == True
+    q_discounts &= db.movement.operation_id == operation_id
+
+    q_surcharges = db.movement.concept_id == db.concept.concept_id
+    q_surcharges &= db.concept.surcharges == True
+    q_surcharges &= db.movement.operation_id == operation_id
+
+    rows_items = db(q_items).select()
+    rows_surcharges = db(q_surcharges).select()
+    rows_discounts = db(q_discounts).select()
+
+    items = float(abs(sum([item.movement.amount for item in rows_items])))
+    surcharges = float(abs(sum([item.movement.amount for item in rows_surcharges])))
+    discounts = float(abs(sum([item.movement.amount for item in rows_discounts])))
+
+    amount = float(items + surcharges -discounts)
+
+    return amount
+
+def movements_update(operation_id):
+    """ Operation maintenance (amounts, checks, taxes, difference) """
+    update = False
+    taxes = movements_taxes(operation_id)
+    checks = movements_checks(operation_id)
+    session.difference = movements_difference(operation_id)
+    db.operation[operation_id].update_record(amount = movements_amount(operation_id))
+    update = True
+    return update
+
+def movements_list():
+    """ List of operations"""
+    table = SQLTABLE(db(db.operation).select(), linkto=URL(c="operations", f="movements_select"))
+    return dict(table = table)
+
+def movements_select():
+    """ Set operation id and open a detail view """
+    session.operation_id = request.args[1]
+    redirect(URL(f="movements_detail"))
+
+def movements_process():
+    message = None
+    result = operations.process(db, session, session.operation_id)
+    if result == True:
+        message = "Operation successfully processed"
+    else:
+        message = "The operation processing failed"
+    return dict(message=message)
+
     

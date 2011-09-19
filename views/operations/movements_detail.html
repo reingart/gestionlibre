@@ -1,4 +1,4 @@
 {{extend 'layout.html'}}
 <h1>Esta es la plantilla operations/movements_detail.html</h1>
-{{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}}
+{{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}} | {{=A("Discount/Surcharges", _href=URL(f="movements_add_discount_surcharge"))}} | {{=A("Process operation", _href=URL(f="movements_process"))}}
 {{=BEAUTIFY(response._vars)}}

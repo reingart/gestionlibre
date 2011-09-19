@@ -7,7 +7,12 @@ import datetime
 
 # process operation
 def process(db, session, operation_id):
-    # TODO: move this code to a special module
+    # TODO: validate operation
+    # with movements inspection and
+    # user / customer parameters
+
+    # invert entry values (1 or -1)
+    invert = 1
     
     # error list for web client feedback
     session.process_errors = []
@@ -22,6 +27,9 @@ def process(db, session, operation_id):
     document = operation.document_id
     if not document.countable:
         return False
+        
+    # Get the document inversion property
+    if document.invert == True: invert = -1
     
     # check if already processed
     if operation.processed:
@@ -44,18 +52,19 @@ def process(db, session, operation_id):
         db.accounting_period).select().last(), \
         description="%s entry" % str(today))
         journal_entry = db.journal_entry[journal_entry_id]
-        
+
     # movements loop (process entries)
     entries = 0
+
     for mov in db(db.movement.operation_id == operation_id\
     ).select():
         # check if entry or exit and change the records amount with correct sign
-        concept = mov.concept_id
+        concept = db(db.concept.concept_id == mov.concept_id).select().first()
         amount = None
-        if concept.entry:
-            amount = mov.amount
-        elif concept.exit:
-            amount = -(mov.amount)
+        if concept.entry == True:
+            amount = mov.amount*invert
+        elif concept.exit == True:
+            amount = -(mov.amount)*invert
         # insert entry record
         db.entry.insert(journal_entry_id = journal_entry, \
         account_id = concept.account_id, amount = amount)
