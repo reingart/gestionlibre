@@ -86,8 +86,10 @@ def ria_movements():
         else:
             response.flash = "Could not process the operation"
     
-    return dict(message="Operation number %s" % operation_id, form = form, \
-    reset_operation_form = reset_operation_form, process_operation_form = process_operation_form)
+    return dict(message="Operation number %s" % operation_id, \
+    form = form, \
+    reset_operation_form = reset_operation_form, \
+    process_operation_form = process_operation_form)
     
 def movements_element():
     """ Insert sub-form for concept selection at movements form"""
@@ -177,13 +179,17 @@ def ria_new_customer_order():
 
     # catch incomplete registrations (no contact user relations)
     if contact_user is None:
-        return dict(form=None, reset = None, contact = None, customer = None, order = None, contact_user=None)
+        return dict(form=None, reset = None, \
+        contact = None, customer = None, order = None, \
+        contact_user=None)
     try:
-        contact = db(db.contact.contact_id == contact_user.contact_id).select().first()
+        contact = db(db.contact.contact_id == contact_user.contact_id \
+        ).select().first()
     except KeyError:
         contact = None
     try:
-        customer = db(db.customer.customer_id == contact.customer_id).select().first()
+        customer = db(db.customer.customer_id == contact.customer_id \
+        ).select().first()
     except KeyError:
         customer = None
 
@@ -240,18 +246,27 @@ def ria_new_customer_order():
             else:
                 order_options[order_document.document_id]["checked"] = False
 
-    return dict(form=form, reset = reset_order, contact = contact, customer = customer, order = db.operation[customer_order], contact_user = contact_user, order_options = order_options)
+    return dict(form=form, reset = reset_order, contact = contact, \
+    customer = customer, order = db.operation[customer_order], \
+    contact_user = contact_user, order_options = order_options)
 
 # order movement creation
 def new_customer_order_element():
     """ Insert sub-form for product selection at Customer ordering form"""
     if not "operation_id" in session.keys():
         raise HTTP(500, "Customer order not found.")
-    form = SQLFORM.factory(Field('concept_id', 'reference concept', requires=IS_IN_SET(orderable_concepts())), Field('description'), Field('quantity', 'double'), _id="new_customer_order_element_form")
+    form = SQLFORM.factory(Field('concept_id', \
+    'reference concept', requires=IS_IN_SET(orderable_concepts())), \
+    Field('description'), Field('quantity', 'double'), \
+    _id="new_customer_order_element_form")
     if form.accepts(request.vars, session):
-        db.movement.insert(operation_id = session.operation_id, concept_id = request.vars.concept_id, description = request.vars.description, quantity = request.vars.quantity)
+        db.movement.insert(operation_id = session.operation_id, \
+        concept_id = request.vars.concept_id, \
+        description = request.vars.description, \
+        quantity = request.vars.quantity)
         response.flash = "Form accepted"
-    order_list = db(db.movement.operation_id == session.operation_id).select()
+    order_list = db(db.movement.operation_id == session.operation_id  \
+    ).select()
     return dict(form=form, order_list = order_list)
 
 # order movement modification
@@ -261,9 +276,18 @@ def new_customer_order_modify_element():
         raise HTTP(500, "Customer order not found.")
     customer_order_element = db.movement[request.args[1]]
 
-    form = SQLFORM.factory(Field('concept_id', 'reference concept', requires=IS_IN_SET(orderable_concepts()), default=customer_order_element.movement_id), Field('description', default=customer_order_element.description), Field('quantity', 'double', default = customer_order_element.quantity), _id="new_customer_order_modify_element_form")
+    form = SQLFORM.factory(Field('concept_id', \
+    'reference concept', requires=IS_IN_SET(orderable_concepts()), \
+    default=customer_order_element.movement_id), \
+    Field('description', default=customer_order_element.description), \
+    Field('quantity', 'double', \
+    default = customer_order_element.quantity), \
+    _id="new_customer_order_modify_element_form")
     if form.accepts(request.vars, session):
-        customer_order_element.update_record(description = request.vars.description, concept_id = request.vars.concept_id, quantity = request.vars.quantity)
+        customer_order_element.update_record( \
+        description = request.vars.description, \
+        concept_id = request.vars.concept_id, \
+        quantity = request.vars.quantity)
         response.flash = "Form accepted"
         redirect(URL(f="new_customer_order"))
     return dict(form=form)
@@ -371,7 +395,8 @@ def order_allocation():
             try:
                 # getting the customer with dictionary syntax
                 # throws a KeyError exception
-                customer_desc = db(db.customer.customer_id == customer).select().first().description
+                customer_desc = db(db.customer.customer_id == customer \
+                ).select().first().description
             except (AttributeError, KeyError):
                 customer_desc = customer
             try:
@@ -402,7 +427,8 @@ def order_allocation():
                 try:
                     concept = int(var.split("_")[3])
                     customer = int(var.split("_")[2])
-                    movements_stack[customer][concept]["allocate"] = float(request.vars[var])
+                    movements_stack[customer][concept]["allocate"] = float( \
+                    request.vars[var])
                 except (ValueError, TypeError, KeyError):
                     customer = None
                     concept = None
@@ -415,8 +441,10 @@ def order_allocation():
                     if operation is None:
                         # new operation
                         # TODO: order allocation document defined by user input/configuration
-                        operation = db.operation.insert(customer_id = customer, document_id = db(db.document.books == True).select().first())
-                    db.movement.insert(operation_id = operation, quantity = w["allocate"], concept_id = concept)
+                        operation = db.operation.insert(customer_id = customer, \
+                        document_id = db(db.document.books == True).select().first())
+                    db.movement.insert(operation_id = operation, \
+                    quantity = w["allocate"], concept_id = concept)
                     # reduce stock value
                     stock_item = db(db.stock.concept_id == concept).select().first()
                     stock_value = stock_item.value -w["allocate"]
@@ -655,8 +683,10 @@ def ria_product_billing():
     'reference customer', requires = IS_IN_DB(db, db.customer, "%(legal_name)s")), \
     Field('subcustomer_id', 'reference subcustomer', \
     requires = IS_IN_DB(db, db.subcustomer, "%(legal_name)s")))
-    if customer_form.accepts(request.vars, session, keepvalues=True, formname="customer_form"):
-        q = (db.operation.customer_id == request.vars.customer_id) | (db.operation.subcustomer_id == request.vars.subcustomer_id)
+    if customer_form.accepts(request.vars, session, \
+    keepvalues=True, formname="customer_form"):
+        q = (db.operation.customer_id == request.vars.customer_id \
+        ) | (db.operation.subcustomer_id == request.vars.subcustomer_id)
         q &= db.operation.processed != True
         q &= db.operation.document_id == db.document.document_id
         q &= db.document.packing_slips == True
@@ -675,7 +705,8 @@ def ria_product_billing():
         _name="operation_%s" % row.operation.operation_id)))
 
     documents = db(db.document.invoices == True).select()
-    document_options = [OPTION(document.description, _value=document.document_id) for document in documents]
+    document_options = [OPTION(document.description, \
+    _value=document.document_id) for document in documents]
 
     billing_form = FORM(TABLE(THEAD(TR(TH("Operation"),TH("Posted"), \
     TH("Code"), TH("Description"), TH("Bill"))), \
@@ -694,16 +725,22 @@ def ria_product_billing():
                 bill_items.append(int(v.split("_")[1]))
         if len(bill_items) > 0:
             # create an invoice  with the collected data
-            invoice_id = db.operation.insert(document_id = request.vars.document_id, \
-            customer_id = customer_id, subcustomer_id =  subcustomer_id)
+            invoice_id = db.operation.insert( \
+            document_id = request.vars.document_id, \
+            customer_id = customer_id, \
+            subcustomer_id =  subcustomer_id)
             # fill the invoice
             for packing_slip_id in bill_items:
-                packing_slip_items = db(db.movement.operation_id == packing_slip_id).select()
+                packing_slip_items = db( \
+                db.movement.operation_id == packing_slip_id).select()
                 for movement in packing_slip_items:
-                    db.movement.insert(operation_id = invoice_id, concept_id = movement.concept_id, \
-                    amount = movement.amount, value = movement.value, quantity = movement.quantity)
+                    db.movement.insert(operation_id = invoice_id, \
+                    concept_id = movement.concept_id, \
+                    amount = movement.amount, value = movement.value, \
+                    quantity = movement.quantity)
                 # check the packing slip as processed
-                db.operation[packing_slip_id].update_record(processed = True)
+                db.operation[packing_slip_id].update_record( \
+                processed = True)
 
             # TODO: insert ivoices payment / current account movements
             # set invoice as current operation
@@ -718,6 +755,7 @@ def ria_product_billing():
 ###############################################
 #### Sequential operation processing (no ria) #
 ###############################################
+
 
 def movements_start():
     """ Initial operation form """
@@ -753,7 +791,8 @@ def movements_header():
     elif opertaion.type == "P":
         fields = []
         
-    form = SQLFORM(db.operation, operation_id, fields = fields)
+    form = SQLFORM(db.operation, operation_id, \
+    fields = fields)
     if form.accepts(request.vars, session):
         if operation.type == "S":
             redirect(URL(f="movements_price_list"))
@@ -778,11 +817,19 @@ def movements_detail():
     
     A user interface to manage movements
     """
-    
+
     operation_id = session.operation_id
+
+    # selected price list or None
+    price_list_id = session.get("price_list_id", None)
+    if price_list_id is not None:
+        price_list = db.price_list[price_list_id]
+    else: price_list = None
 
     # update operation values
     update = movements_update(operation_id)
+
+    # Get the operation dal object
     operation = db.operation[operation_id]
 
     # { header:table, ... h:t} dictionary
@@ -852,8 +899,7 @@ def movements_detail():
     columns = columns, headers = headers)
 
     return dict(operation = operation, \
-    movements = movements)
-
+    movements = movements, price_list = price_list)
 
 def movements_add_item():
     """ Ads an item movement to the operation. """
@@ -863,12 +909,7 @@ def movements_add_item():
     document = db.document[operation.document_id]
 
     price_list_id = session.get("price_list_id", None)
-    
-    if price_list_id is not None:
-        price_list = db.price_list[price_list_id]
-    else:
-        price_list = None
-        
+
     form = SQLFORM.factory(Field("item", \
     requires=IS_IN_DB(db(db.concept.internal != True), \
     "concept.concept_id", "%(description)s")), \
@@ -879,9 +920,10 @@ def movements_add_item():
         concept = db.concept[request.vars.item]
         concept_id = concept.concept_id
         quantity = float(request.vars.quantity)
-        
+        value = amount = None
+
         # Calculate price, value, quantity, amount
-        if price_list is not None:
+        if price_list_id is not None:
             price = db((db.price.price_list_id == price_list_id \
             ) & (db.price.concept_id == concept_id)).select().first()
             value = price.value
@@ -928,10 +970,10 @@ def movements_taxes(operation_id):
                 except KeyError:
                     taxes[tax.concept_id] = tax_amount
 
-            if not document.discriminate:
-                # add to item amount if not discriminated            
-                movement.amount = float(movement.amount) + tax_amount
-                movement.value = float(movement.value) * tax.amount
+                if not document.discriminate:
+                    # add to item amount if not discriminated
+                    movement.amount = float(movement.amount) + tax_amount
+                    movement.value = float(movement.value) * tax.amount
 
     for tax_concept_id in taxes:
         tax = db.concept[tax_concept_id]
@@ -951,7 +993,8 @@ def movements_taxes(operation_id):
                 tax_record = db.movement[tax_record_id]
 
             else:
-                tax_record.update_record(amount = taxes[tax_concept_id], value = taxes[tax_concept_id])
+                tax_record.update_record(amount = taxes[tax_concept_id], \
+                value = taxes[tax_concept_id])
     items = len(taxes)
     return items
 
@@ -974,6 +1017,7 @@ def movements_add_check():
 def movements_checks(operation_id):
     """ Movements check processing """
     # TODO: erease checks movement if amount is 0
+    concept_id = None
     checks = db(db.bank_check.operation_id == operation_id).select()
     operation = db.operation[operation_id]
     document = db.document[operation.document_id]
@@ -1190,7 +1234,10 @@ def movements_update(operation_id):
 
 def movements_list():
     """ List of operations"""
-    table = SQLTABLE(db(db.operation).select(), linkto=URL(c="operations", f="movements_select"))
+    columns = ["operation.operation_id", "operation.code", "operation.description", "operation.customer_id", "operation.subcustomer_id", "operation.supplier_id", "operation.document_id", "operation.posted"]
+    headers = {"operation.operation_id": "Edit", "operation.code": "Code", "operation.description": "Description", "operation.customer_id": "Customer", "operation.subcustomer_id": "Subcustomer", "operation.supplier_id": "Supplier", "operation.document_id": "Document", "operation.posted": "Posted"}
+    table = SQLTABLE(db(db.operation).select(), columns = columns, headers = headers, \
+    linkto=URL(c="operations", f="movements_select"))
     return dict(table = table)
 
 def movements_select():
@@ -1200,6 +1247,33 @@ def movements_select():
 
 def movements_process():
     message = None
+
+    operation_id = session.operation_id
+    operation = db.operation[operation_id]
+    
+    # Calculate difference for payments
+    session.difference = movements_difference(operation_id)
+
+    if abs(session.difference) > 0.01:
+        # offset / payment terms movement
+        # Long notation for record id == 0 db issue
+        payment_terms = db( \
+        db.payment_terms.payment_terms_id == operation.payment_terms_id \
+        ).select().first()
+        
+        # Wich offset / payment concept to record
+        concept = db.concept[payment_terms.concept_id]
+
+        # Offset / Payment movement
+        movement_id = db.movement.insert(operation_id = operation_id, \
+        concept_id = concept.concept_id, quantity = 1, \
+        amount = session.difference, value = session.difference)
+
+        # update the operation
+        updated = movements_update(operation_id)
+
+    # TODO: operation difference revision (for accounting)
+
     result = operations.process(db, session, session.operation_id)
     if result == True:
         message = "Operation successfully processed"
@@ -1207,4 +1281,3 @@ def movements_process():
         message = "The operation processing failed"
     return dict(message=message)
 
-    

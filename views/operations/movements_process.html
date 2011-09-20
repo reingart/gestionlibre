@@ -1,4 +1,5 @@
 {{extend 'layout.html'}}
-<h1>Esta es la plantilla operations/movements_process.html</h1>
+<h1>Operation processing result</h1>
 {{=A("Movements detail", _href=URL(f="movements_detail"))}} | {{=A("Movements list", _href=URL(f="movements_list"))}}
-{{=BEAUTIFY(response._vars)}}
+<br />
+{{=message}}

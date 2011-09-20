@@ -3,7 +3,7 @@
 {{=A("List order allocation operations", _href=URL(c="operations", f="list_order_allocations"))}}
 {{if len(operations) > 0:}}
 <h3>The following operations were created</h3>
-{{=BEAUTIFY([A("Order allocation %s" % str(o), _href=URL(c="operations", f="movements", args=["operation", o])) for o in operations])}}
+{{=BEAUTIFY([A("Order allocation %s" % str(o), _href=URL(c="operations", f="ria_movements", args=["operation", o])) for o in operations])}}
 {{=HR()}}
 {{=A("New order allocation", _href=URL(c="operations", f="order_allocation"))}}
 {{else:}}
