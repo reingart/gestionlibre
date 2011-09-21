@@ -10,4 +10,20 @@ None selected
 
 {{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}} | {{=A("Discount/Surcharges", _href=URL(f="movements_add_discount_surcharge"))}} | {{=A("Process operation", _href=URL(f="movements_process"))}} | {{=A("Select price list", _href=URL(f="movements_price_list"))}}
 
+{{=HR()}}
+<h3>Options</h3>
+<ul>
+<li>
+Operation
+{{if update_stock == True:}}
+ updates stock
+{{elif update_stock == False:}}
+ does not update stock
+{{pass}} ({{=A("Change", _href=URL(f="movements_option_update_stock"))}})
+</li>
+<li>
+Warehouse: {{=warehouse}} ({{=A("Change", _href=URL(f="movements_select_warehouse"))}})
+</li>
+</ul>
+
 {{=BEAUTIFY(movements)}}

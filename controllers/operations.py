@@ -194,26 +194,35 @@ def ria_new_customer_order():
         customer = None
 
     # Look for allowed orders in options db
-    customer_allowed_orders = db(db.option.name == "customer_allowed_orders").select().first()
-    if customer_allowed_orders and  isinstance(customer_allowed_orders.value, basestring):
-        allowed_orders_list = [int(o) for o in customer_allowed_orders.value.split("|") if len(o) > 0]
+    customer_allowed_orders = db(db.option.name == \
+    "customer_allowed_orders").select().first()
+    if customer_allowed_orders and  isinstance( \
+    customer_allowed_orders.value, basestring):
+        allowed_orders_list = [int(o) for o in \
+        customer_allowed_orders.value.split("|") if len(o) > 0]
     else:
         allowed_orders_list = []
     # Get the default order
-    default_order = db(db.option.name == "customer_default_order").select().first()
-    if isinstance(default_order, basestring): default_order = int(default_order)
+    default_order = db(db.option.name == \
+    "customer_default_order").select().first()
+    if isinstance(default_order, basestring): \
+    default_order = int(default_order)
 
     # create a new order with pre-populated user data
     if not "operation_id" in session.keys():
-        customer_order = db.operation.insert(customer_id = customer, document_id = default_order.value)
+        customer_order = db.operation.insert( \
+        customer_id = customer, document_id = default_order.value)
         session.operation_id = customer_order
     else:
         customer_order = session.operation_id
         if session.operation_id is None:
-            customer_order = db.operation.insert(customer_id = customer, document_id = default_order.value)
+            customer_order = db.operation.insert( \
+            customer_id = customer, \
+            document_id = default_order.value)
             session.operation_id = customer_order
 
-    form = SQLFORM(db.operation, customer_order, fields=["description"], _id="new_customer_order_form")
+    form = SQLFORM(db.operation, customer_order, \
+    fields=["description"], _id="new_customer_order_form")
 
     # Available order documents
     order_documents = db(db.document.orders == True).select()
@@ -223,13 +232,15 @@ def ria_new_customer_order():
     order_options = dict()
 
     if form.accepts(request.vars, session):
-        db.operation[customer_order].update_record(document_id = request.vars.order_type)
+        db.operation[customer_order].update_record( \
+        document_id = request.vars.order_type)
         response.flash = "Form accepted"
 
     for order_document in order_documents:
         loop_count += 1
         # check option if previously selected
-        if db.operation[customer_order].document_id == order_document.document_id:
+        if db.operation[customer_order].document_id \
+        == order_document.document_id:
             checked = True
         elif order_document.document_id == default_order.value:
             checked = True
@@ -834,6 +845,18 @@ def movements_detail():
 
     # { header:table, ... h:t} dictionary
     movements = dict()
+
+    # Operation options
+    update_stock = session.get("update_stock", None)
+    warehouse_id = session.get("warehouse_id", None)
+    
+    if warehouse_id is not None:
+        warehouse = db.warehouse[warehouse_id].description
+    else:
+        warehouse = "None selected"
+        
+    if update_stock is None:
+        update_stock = session.update_stock = False
     
     # Items (Products/Services/Discounts ...)
     q = db.movement.concept_id == db.concept.concept_id
@@ -899,7 +922,8 @@ def movements_detail():
     columns = columns, headers = headers)
 
     return dict(operation = operation, \
-    movements = movements, price_list = price_list)
+    movements = movements, price_list = price_list, \
+    update_stock = update_stock, warehouse = warehouse)
 
 def movements_add_item():
     """ Ads an item movement to the operation. """
@@ -1228,15 +1252,26 @@ def movements_update(operation_id):
     taxes = movements_taxes(operation_id)
     checks = movements_checks(operation_id)
     session.difference = movements_difference(operation_id)
-    db.operation[operation_id].update_record(amount = movements_amount(operation_id))
+    db.operation[operation_id].update_record( \
+    amount = movements_amount(operation_id))
     update = True
     return update
 
 def movements_list():
     """ List of operations"""
-    columns = ["operation.operation_id", "operation.code", "operation.description", "operation.customer_id", "operation.subcustomer_id", "operation.supplier_id", "operation.document_id", "operation.posted"]
-    headers = {"operation.operation_id": "Edit", "operation.code": "Code", "operation.description": "Description", "operation.customer_id": "Customer", "operation.subcustomer_id": "Subcustomer", "operation.supplier_id": "Supplier", "operation.document_id": "Document", "operation.posted": "Posted"}
-    table = SQLTABLE(db(db.operation).select(), columns = columns, headers = headers, \
+    columns = ["operation.operation_id", "operation.code", \
+    "operation.description", "operation.customer_id", \
+    "operation.subcustomer_id", "operation.supplier_id", \
+    "operation.document_id", "operation.posted"]
+    headers = {"operation.operation_id": "Edit", \
+    "operation.code": "Code", "operation.description": \
+    "Description", "operation.customer_id": "Customer", \
+    "operation.subcustomer_id": "Subcustomer", \
+    "operation.supplier_id": "Supplier", \
+    "operation.document_id": "Document", \
+    "operation.posted": "Posted"}
+    table = SQLTABLE(db(db.operation).select(), \
+    columns = columns, headers = headers, \
     linkto=URL(c="operations", f="movements_select"))
     return dict(table = table)
 
@@ -1250,6 +1285,9 @@ def movements_process():
 
     operation_id = session.operation_id
     operation = db.operation[operation_id]
+    document = operation.document_id
+
+    stock_updated = False
     
     # Calculate difference for payments
     session.difference = movements_difference(operation_id)
@@ -1274,10 +1312,70 @@ def movements_process():
 
     # TODO: operation difference revision (for accounting)
 
-    result = operations.process(db, session, session.operation_id)
-    if result == True:
-        message = "Operation successfully processed"
+    result = None
+    stock_updated = None
+
+    # process operation
+    if document.countable:
+        result = operations.process(db, session, session.operation_id)
+
+    # change stock values if requested
+    if (session.get("update_stock", False) == True) and (result != False):
+        stock_updated = movements_stock(operation_id)
+
+    if (result == False) or (stock_updated == False):
+        message = "The operation processing failed"        
     else:
-        message = "The operation processing failed"
+        message = "Operation successfully processed"
+        
+    # TODO: rollback on errors
+    
     return dict(message=message)
 
+def movements_option_update_stock():
+    """ Switch session update stock value """
+    if session.update_stock == True:
+        session.update_stock = False
+    elif session.update_stock == False:
+        session.update_stock = True
+    redirect(URL(f="movements_detail"))
+
+def movements_select_warehouse():
+    form = SQLFORM.factory(Field("warehouse", \
+    requires = IS_IN_DB(db(db.warehouse), \
+    "warehouse.warehouse_id", "%(description)s")))
+    if form.accepts(request.vars, session):
+        session.warehouse_id = request.vars.warehouse
+        redirect(URL(f="movements_detail"))
+    return dict(form = form)
+
+def movements_stock(operation_id):
+    result = False
+    movements = db(db.movement.operation_id == operation_id).select()
+    document = db.operation[operation_id].document_id
+    warehouse_id = session.get("warehouse_id", None)
+    items = 0
+    for movement in movements:
+        concept = db(db.concept.concept_id == movement.concept_id \
+        ).select().first()
+        if (concept is not None) and (warehouse_id is \
+        not None) and (concept.stock == True):
+            stock = db(( \
+            db.stock.warehouse_id == warehouse_id) \
+            & (db.stock.concept_id == concept.concept_id) \
+            ).select().first()
+            if stock is not None:
+                value = stock.value
+                if (document is not None) and ( \
+                document.invert == True):
+                    value += movement.quantity
+                else:
+                    value -= movement.quantity
+
+                # update stock value
+                stock.update_record(value = value)
+
+                items += 1
+
+    if items > 0: result = True
+    return result

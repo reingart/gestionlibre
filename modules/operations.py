@@ -5,7 +5,7 @@ import datetime
 
 # operation processing
 
-# process operation
+# process operation (for accounting)
 def process(db, session, operation_id):
     # TODO: validate operation
     # with movements inspection and
@@ -81,3 +81,4 @@ def process(db, session, operation_id):
     # end of process        
     # no process made
     return False
+
