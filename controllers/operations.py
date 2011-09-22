@@ -792,7 +792,8 @@ def movements_header():
     operation = db.operation[operation_id]
     
     if operation.type == "S":
-        fields = ["code", "description", "customer_id", \
+        fields = ["code", "description", "supplier_id", \
+        "customer_id", \
         "detail", "payment_terms_id", "term", "document_id", \
         "branch", "due_date", "voided", "fund_id", \
         "cost_center_id", "observations", "subcustomer_id", \
@@ -840,8 +841,11 @@ def movements_detail():
     # update operation values
     update = movements_update(operation_id)
 
-    # Get the operation dal object
+    # Get the operation dal objects
     operation = db.operation[operation_id]
+    customer = db(db.customer.customer_id == operation.customer_id).select().first()
+    subcustomer = db(db.subcustomer.subcustomer_id == operation.subcustomer_id).select().first()
+    supplier = db(db.supplier.supplier_id == operation.supplier_id).select().first()
 
     # { header:table, ... h:t} dictionary
     movements = dict()
@@ -923,7 +927,9 @@ def movements_detail():
 
     return dict(operation = operation, \
     movements = movements, price_list = price_list, \
-    update_stock = update_stock, warehouse = warehouse)
+    update_stock = update_stock, warehouse = warehouse, \
+    customer = customer, subcustomer = subcustomer, \
+    supplier = supplier)
 
 def movements_add_item():
     """ Ads an item movement to the operation. """
@@ -986,7 +992,7 @@ def movements_taxes(operation_id):
             # None taxes can occur if a
             # concept is taxed but has no
             # tax concept as reference
-            if tax is not None:
+            if (tax is not None) and (amount is not None):
                 tax_amount = (float(amount) * float(tax.amount)) \
                 - float(amount)
                 try:
@@ -1171,8 +1177,9 @@ def movements_difference(operation_id):
     rows_exit = db(q_exit).select()
     
     difference = float(abs(sum([row.movement.amount for row in \
-    rows_exit], 0)) - abs(sum([row.movement.amount for row \
-    in rows_entry], 0)))
+    rows_exit if row.movement.amount is not None], 0)) \
+    - abs(sum([row.movement.amount for row \
+    in rows_entry if row.movement.amount is not None], 0)))
     
     if operation == "S":
         pass
@@ -1238,9 +1245,12 @@ def movements_amount(operation_id):
     rows_surcharges = db(q_surcharges).select()
     rows_discounts = db(q_discounts).select()
 
-    items = float(abs(sum([item.movement.amount for item in rows_items])))
-    surcharges = float(abs(sum([item.movement.amount for item in rows_surcharges])))
-    discounts = float(abs(sum([item.movement.amount for item in rows_discounts])))
+    items = float(abs(sum([item.movement.amount for item \
+    in rows_items if item.movement.amount is not None])))
+    surcharges = float(abs(sum([item.movement.amount \
+    for item in rows_surcharges if item.movement.amount is not None])))
+    discounts = float(abs(sum([item.movement.amount \
+    for item in rows_discounts if item.movement.amount is not None])))
 
     amount = float(items + surcharges -discounts)
 

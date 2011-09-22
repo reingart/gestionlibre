@@ -1,5 +1,13 @@
 {{extend 'layout.html'}}
 <h1>Movements (Operations)</h1>
+<h3>{{=operation.document_id.description}} {{=operation.operation_id}}</h3>
+{{=HR()}}
+{{try:}}
+Supplier: {{=supplier.legal_name}}. TAX ID: {{=supplier.tax_identification}} | Customer: {{=customer.legal_name}}. TAX ID: {{=customer.tax_identification}}
+{{=HR()}}
+{{except (ValueError, KeyError, TypeError, AttributeError):}}
+Error trying to get the operation customer/supplier data from database
+{{pass}}
 <h3>Price list:
 {{if price_list is not None:}}
 {{=price_list.description}}
