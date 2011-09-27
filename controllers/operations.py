@@ -790,6 +790,11 @@ def movements_header():
 
     operation_id = session.operation_id
     operation = db.operation[operation_id]
+
+    # default form data
+    default_supplier_option = db(db.option.name == "default_supplier_id").select().first()
+    default_customer_option = db(db.option.name == "default_customer_id").select().first()
+    customer_option = supplier_option = None
     
     if operation.type == "S":
         fields = ["code", "description", "supplier_id", \
@@ -798,13 +803,29 @@ def movements_header():
         "branch", "due_date", "voided", "fund_id", \
         "cost_center_id", "observations", "subcustomer_id", \
         "salesperson_id", "jurisdiction_id"]
+        supplier_option = default_supplier_option
+        
     elif operation.type == "T":
-        fields = []
-    elif opertaion.type == "P":
-        fields = []
+        fields = None
+    elif operation.type == "P":
+        fields = None
+        customer_option = default_customer_option
         
     form = SQLFORM(db.operation, operation_id, \
     fields = fields)
+
+    # auto-complete header form
+    if supplier_option is not None:
+        try:
+            form.vars.supplier_id = int(supplier_option.value)
+        except (ValueError, TypeError):
+            form.vars.supplier_id = None
+    elif customer_option is not None:
+        try:
+            form.vars.customer_id = int(customer_option.value)
+        except (ValueError, TypeError):
+            form.vars.customer_id = None
+
     if form.accepts(request.vars, session):
         if operation.type == "S":
             redirect(URL(f="movements_price_list"))
@@ -972,7 +993,10 @@ def movements_add_item():
 def movements_taxes(operation_id):
     """ Performs tax operations for the given operation """
     
-    # TODO: clean zero amount tax items
+    # TODO: clean zero amount tax items, 
+    # Separate the movements values
+    # processing in a function
+    
     # WARNING: db.table[0] returns None
     
     operation = db.operation[operation_id]
@@ -986,7 +1010,13 @@ def movements_taxes(operation_id):
         # Compute the tax values if required
         concept = db(db.concept.concept_id == movement.concept_id \
         ).select().first()
-        amount = movement.amount
+
+        # Calculate movement amount without taxes
+        try:
+            amount = float(movement.value) * float(movement.quantity)
+        except (TypeError, ValueError, AttributeError):
+            amount = None
+        
         if (concept is not None) and (concept.taxed):
             tax = db.concept[concept.tax_id]
             # None taxes can occur if a
@@ -1002,8 +1032,8 @@ def movements_taxes(operation_id):
 
                 if not document.discriminate:
                     # add to item amount if not discriminated
-                    movement.amount = float(movement.amount) + tax_amount
-                    movement.value = float(movement.value) * tax.amount
+                    movement.update_record(amount = float( \
+                    amount) + tax_amount)
 
     for tax_concept_id in taxes:
         tax = db.concept[tax_concept_id]
