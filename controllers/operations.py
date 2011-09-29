@@ -807,8 +807,13 @@ def movements_header():
         
     elif operation.type == "T":
         fields = None
+        
     elif operation.type == "P":
-        fields = None
+        fields = ["code", "description", "supplier_id", \
+        "customer_id", \
+        "detail", "payment_terms_id", "term", "document_id", \
+        "branch", "due_date", "voided", "fund_id", \
+        "cost_center_id", "observations", "jurisdiction_id"]
         customer_option = default_customer_option
         
     form = SQLFORM(db.operation, operation_id, \
@@ -827,7 +832,7 @@ def movements_header():
             form.vars.customer_id = None
 
     if form.accepts(request.vars, session):
-        if operation.type == "S":
+        if operation.type in ("S", "P"):
             redirect(URL(f="movements_price_list"))
         else:
             redirect(URL(f="movements_detail"))
@@ -984,6 +989,7 @@ def movements_add_item():
         db.movement.insert(operation_id = operation_id, \
         amount = amount, value = value, concept_id = concept_id, \
         quantity = quantity)
+        print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
 
         redirect(URL(f="movements_detail"))
 
@@ -1089,11 +1095,14 @@ def movements_checks(operation_id):
         pass
     elif operation.type == "T":
         pass
+    
     # get or create the movement
-    q = db.movement.operation_id == operation_id
-    q &= db.movement.concept_id == concept_id
-    s = db(q)
-    if checks > 0:
+    if concept_id is not None:
+        q = db.movement.operation_id == operation_id
+        q &= db.movement.concept_id == concept_id
+        s = db(q)
+        
+    if len(checks) > 0:
         row = s.select().first()
         if (row is None):
             row = db.movement.insert(operation_id = operation_id, \
@@ -1331,6 +1340,7 @@ def movements_process():
     
     # Calculate difference for payments
     session.difference = movements_difference(operation_id)
+    print "Difference: %s" % session.difference
 
     if abs(session.difference) > 0.01:
         # offset / payment terms movement
@@ -1341,11 +1351,14 @@ def movements_process():
         
         # Wich offset / payment concept to record
         concept = db.concept[payment_terms.concept_id]
+        print "Concept: %s" % str(concept)
 
         # Offset / Payment movement
         movement_id = db.movement.insert(operation_id = operation_id, \
         concept_id = concept.concept_id, quantity = 1, \
         amount = session.difference, value = session.difference)
+
+        print "Movement (offset): %s" % str(db.movement[movement_id])
 
         # update the operation
         updated = movements_update(operation_id)
@@ -1356,7 +1369,7 @@ def movements_process():
     stock_updated = None
 
     # process operation
-    if document.countable:
+    if document.countable and operation.type in ("S", "P"):
         result = operations.process(db, session, session.operation_id)
 
     # change stock values if requested

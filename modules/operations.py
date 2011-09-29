@@ -42,6 +42,7 @@ def process(db, session, operation_id):
     # check if journal entry is valid
     # TODO: Do standard entry validation
     # according to local regulations
+    # and return error code/messages
     today = datetime.date.today()
     if (journal_entry is None) or (not ((\
     journal_entry.posted.year == today.year) and \
