@@ -4,6 +4,7 @@
 import datetime
 
 operations = local_import("operations")
+crm = local_import("crm")
 
 # list of orderable concepts
 # returns a dict with value, name pairs for
@@ -340,7 +341,7 @@ def order_allocation():
             customer = int(om.operation.customer_id)
             operation = int(om.operation.operation_id)
             operations.add(operation)
-        except KeyError:
+        except (KeyError, ValueError, AttributeError, TypeError):
             concept = customer = operation = None
 
         if customer in movements_stack:
@@ -892,6 +893,7 @@ def movements_detail():
     q = db.movement.concept_id == db.concept.concept_id
     q &= db.concept.internal != True
     q &= db.concept.tax != True
+    q &= db.concept.banks != True
     q &= db.movement.operation_id == operation_id
     
     s = db(q)
@@ -1083,31 +1085,50 @@ def movements_add_check():
 def movements_checks(operation_id):
     """ Movements check processing """
     # TODO: erease checks movement if amount is 0
+    # TODO: return warnings/errors
     concept_id = None
     checks = db(db.bank_check.operation_id == operation_id).select()
     operation = db.operation[operation_id]
     document = db.document[operation.document_id]
+    
     if operation.type == "S":
         concept_id = db( \
         db.option.name == "sales_check_input_concept" \
         ).select().first().value
     elif operation.type == "P":
-        pass
-    elif operation.type == "T":
-        pass
+        concept_id = db( \
+        db.option.name == "purchases_check_input_concept" \
+        ).select().first().value
+    else:
+        # Do not input checks if it is a stock operation
+        return 0
     
     # get or create the movement
     if concept_id is not None:
         q = db.movement.operation_id == operation_id
         q &= db.movement.concept_id == concept_id
         s = db(q)
-        
-    if len(checks) > 0:
-        row = s.select().first()
-        if (row is None):
-            row = db.movement.insert(operation_id = operation_id, \
-            concept_id = concept_id)
-        row.update_record(amount = sum([check.amount for check in checks]))
+
+        if len(checks) > 0:
+            checks_movement = s.select().first()
+            if (checks_movement is None):
+                checks_movement_id = db.movement.insert( \
+                operation_id = operation_id, \
+                concept_id = concept_id)
+
+                # Get the new checks movement db record
+                checks_movement = \
+                db.movement[checks_movement_id]
+
+            # Calculate the total amount and update the
+            # checks movement
+            checks_movement.update_record( \
+            amount = sum([check.amount for check in checks]))
+
+    else:
+        # no concept configured for checks
+        return 0
+            
     return len(checks)
 
 
@@ -1200,7 +1221,10 @@ def movements_current_account_data():
 def movements_difference(operation_id):
     # None for unresolved amounts
     difference = None
+    invert_value = 1
     operation = db.operation[operation_id]
+    document = operation.document_id
+    if document.invert: invert_value = -1
 
     # draft movements algorithm:
     # difference = exit concepts - entry c.
@@ -1215,17 +1239,11 @@ def movements_difference(operation_id):
     rows_entry = db(q_entry).select()
     rows_exit = db(q_exit).select()
     
-    difference = float(abs(sum([row.movement.amount for row in \
-    rows_exit if row.movement.amount is not None], 0)) \
-    - abs(sum([row.movement.amount for row \
-    in rows_entry if row.movement.amount is not None], 0)))
-    
-    if operation == "S":
-        pass
-    elif operation == "P":
-        pass
-    elif operation == "T":
-        pass
+    difference = float(sum([row.movement.amount for row in \
+    rows_exit if row.movement.amount is not None], 0) \
+    - sum([row.movement.amount for row \
+    in rows_entry if row.movement.amount is not None], 0)) \
+    * invert_value
     
     return difference
 
@@ -1350,13 +1368,58 @@ def movements_process():
         ).select().first()
         
         # Wich offset / payment concept to record
-        concept = db.concept[payment_terms.concept_id]
-        print "Concept: %s" % str(concept)
+        offset_concept = db.concept[payment_terms.concept_id]
+
+        # TODO: validate current account limit if offset concept is
+        # current account. Move validation to auxiliar function
+
+        if (offset_concept.current_account == \
+        True) and (operation.type == "S"):
+            if operation.subcustomer_id is not None:
+                current_account_value = \
+                crm.subcustomer_current_account_value( \
+                db, operation.subcustomer_id)
+                print "Current account value: %s" % current_account_value
+                try:
+                    # Get the current account limit
+                    # allowed
+                    debt_limit = float( \
+                    operation.subcustomer_id.current_account_limit)
+                except (TypeError, ValueError, AttributeError):
+                    # No limit found
+                    debt_limit = 0.00
+                    
+                print "Debt limit: %s" % debt_limit
+
+                if (current_account_value + session.difference) > debt_limit:
+                    return dict(message= \
+                    "Operation processing failed: debt limit reached")
+
+            elif operation.customer_id is not None:
+                current_account_value = \
+                crm.customer_current_account_value(db, \
+                operation.customer_id)
+                print "Current account value: %s" % current_account_value                
+                try:
+                    # Get the current account limit
+                    # allowed
+                    debt_limit = float( \
+                    operation.customer_id.current_account_limit)
+                except (TypeError, ValueError, AttributeError):
+                    # No limit found
+                    debt_limit = 0.00
+                    
+                print "Debt limit: %s" % debt_limit
+                
+                if (current_account_value + session.difference) > debt_limit:
+                    return dict(message= \
+                    "Operation processing failed: debt limit reached")
 
         # Offset / Payment movement
-        movement_id = db.movement.insert(operation_id = operation_id, \
-        concept_id = concept.concept_id, quantity = 1, \
-        amount = session.difference, value = session.difference)
+        movement_id = db.movement.insert(operation_id = \
+        operation_id, concept_id = offset_concept.concept_id, \
+        quantity = 1, amount = session.difference, value = \
+        session.difference)
 
         print "Movement (offset): %s" % str(db.movement[movement_id])
 

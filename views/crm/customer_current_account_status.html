@@ -1,0 +1,16 @@
+{{extend "layout.html"}}
+<h1>Customer current account</h1>
+<ul>
+<li>
+Customer: {{=customer.legal_name}}
+</li>
+<li>
+Tax id: {{=customer.tax_identification}}
+</li>
+<li>
+Current account calculated amount: {{="%.2f" % value}}
+</li>
+{{if session.get("operation_id", None) != None:}}
+{{=A("Movements detail", _href=URL(c="operations", f="movements_detail"))}} | 
+{{ pass }}
+{{=A("Movements list", _href=URL(c="operations", f="movements_list"))}}

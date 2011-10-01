@@ -3,7 +3,7 @@
 <h3>{{=operation.document_id.description}} {{=operation.operation_id}}</h3>
 {{=HR()}}
 {{try:}}
-Supplier: {{=supplier.legal_name}}. TAX ID: {{=supplier.tax_identification}} | Customer: {{=customer.legal_name}}. TAX ID: {{=customer.tax_identification}}
+Supplier: {{=supplier.legal_name}}. TAX ID: {{=supplier.tax_identification}} | Customer: {{=customer.legal_name}}. TAX ID: {{=customer.tax_identification}} | {{ =A("Customer current account", _href=URL(c="crm", f="customer_current_account_status", args=["customer", operation.customer_id])) }} | {{ =A("Subcustomer current account", _href=URL(c="crm", f="customer_current_account_status", args=["subcustomer", operation.subcustomer_id])) }}
 {{=HR()}}
 {{except (ValueError, KeyError, TypeError, AttributeError):}}
 Error trying to get the operation customer/supplier data from database

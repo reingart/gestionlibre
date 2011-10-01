@@ -1,7 +1,9 @@
 # coding: utf8
 # intente algo como
 
+crm = local_import("crm")
 import datetime
+
 
 def index(): return dict(message="hello from crm.py")
 
@@ -55,7 +57,7 @@ def current_account_report():
     # customer / subcustomer selection form
     query_form = SQLFORM.factory(Field('customer', 'reference customer', \
     requires=IS_IN_DB(db, db.customer, "%(legal_name)s")), Field('subcustomer', \
-    'reference subcustomer', requires=IS_IN_DB(db, db.subcustomer, "%(legal_name)s")))
+    'reference subcustomer', requires=IS_EMPTY_OR(IS_IN_DB(db, db.subcustomer, "%(legal_name)s"))))
     if query_form.accepts(request.vars, session, keepvalues=True, formname="query_form"):
         q = ((db.operation.customer_id == request.vars.customer) | \
             (db.operation.subcustomer_id == request.vars.subcustomer))
@@ -101,3 +103,16 @@ def new_customer():
 def new_subcustomer():
     form = crud.create(db.subcustomer)
     return dict(form = form)
+
+def customer_current_account_status():
+    if request.args[0] == "customer":
+        customer = db.customer[request.args[1]]
+        value = crm.customer_current_account_value(db, \
+        customer.customer_id)
+    elif request.args[0] == "subcustomer":
+        customer = db.subcustomer[request.args[1]]
+        value = crm.subcustomer_current_account_value(db, \
+        customer.subcustomer_id)
+        
+    return dict(value = value, customer = customer)
+    
