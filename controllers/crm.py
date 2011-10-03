@@ -91,7 +91,7 @@ def current_account_report():
         "document.description": "Document" }
                
         operations = SQLTABLE(the_set.select(), columns=columns, \
-        headers=headers, linkto=URL(c="operations", f="movements"))
+        headers=headers, linkto=URL(c="operations", f="ria_movements"))
     return dict(query_form = query_form, operations = operations, \
     total_debt = total_debt)
 

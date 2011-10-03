@@ -1366,7 +1366,7 @@ def movements_process():
         payment_terms = db( \
         db.payment_terms.payment_terms_id == operation.payment_terms_id \
         ).select().first()
-        
+
         # Wich offset / payment concept to record
         offset_concept = db.concept[payment_terms.concept_id]
 
@@ -1495,3 +1495,50 @@ def movements_stock(operation_id):
 
     if items > 0: result = True
     return result
+
+def movements_add_payment_method():
+    operation = db.operation[session.operation_id]
+    form = SQLFORM.factory(Field("method", "reference concept", \
+    requires = IS_IN_DB(db(db.concept.payment_method == True), \
+    "concept.concept_id", "%(description)s")), Field("amount", \
+    "decimal(10,2)"), Field("quotas", "integer"), \
+    Field("surcharge", "double"), Field("detail"), \
+    Field("payment_reference_number", \
+    comment = "i.e. third party payment transaction number"))
+
+    if form.accepts(request.vars, session):
+        detail = request.vars.detail
+        reference = request.vars.payment_reference_number
+
+        try:
+            quotas = int(request.vars.quotas)
+        except (ValueError, TypeError):
+            quotas = 0
+
+        try:
+            amount = float(request.vars.amount)
+        except (ValueError, TypeError):
+            amount = 0.0
+
+        try:
+            surcharge = float(request.vars.surcharge)
+        except:
+            surcharge = 0.0
+
+        amount = amount*surcharge/100.0 + amount
+        if quotas >1:
+            quota_amount = amount/float(quotas)
+            detail += " Quotas: %s x%.2f" % (quotas, quota_amount)
+
+        if len(reference) > 0:
+            detail += " Transaction number: %s" % reference
+
+        if amount != 0.0:
+            db.movement.insert(operation_id = session.operation_id, \
+            concept_id = request.vars.method, detail = detail, \
+            amount = amount, description = detail, \
+            value = amount, quantity = 1)
+
+        redirect(URL(f="movements_detail"))
+
+    return dict(form = form)
