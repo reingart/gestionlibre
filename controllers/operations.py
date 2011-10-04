@@ -1496,7 +1496,9 @@ def movements_stock(operation_id):
     if items > 0: result = True
     return result
 
+
 def movements_add_payment_method():
+    # custom payment form
     operation = db.operation[session.operation_id]
     form = SQLFORM.factory(Field("method", "reference concept", \
     requires = IS_IN_DB(db(db.concept.payment_method == True), \
@@ -1506,7 +1508,9 @@ def movements_add_payment_method():
     Field("payment_reference_number", \
     comment = "i.e. third party payment transaction number"))
 
+    # on form validation process values
     if form.accepts(request.vars, session):
+        # form name shortcuts and values filter
         detail = request.vars.detail
         reference = request.vars.payment_reference_number
 
@@ -1525,14 +1529,20 @@ def movements_add_payment_method():
         except:
             surcharge = 0.0
 
+        # calculate the total amount with surcharge
+        # when specified
         amount = amount*surcharge/100.0 + amount
+
+        # Detailed quota amounts (uniform quota values)
         if quotas >1:
             quota_amount = amount/float(quotas)
             detail += " Quotas: %s x%.2f" % (quotas, quota_amount)
 
+        # Payment services transaction number in detail
         if len(reference) > 0:
             detail += " Transaction number: %s" % reference
 
+        # insert the movement record if amount is not 0
         if amount != 0.0:
             db.movement.insert(operation_id = session.operation_id, \
             concept_id = request.vars.method, detail = detail, \
