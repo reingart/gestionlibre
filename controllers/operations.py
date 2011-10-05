@@ -1355,7 +1355,7 @@ def movements_process():
     document = operation.document_id
 
     stock_updated = False
-    
+
     # Calculate difference for payments
     session.difference = movements_difference(operation_id)
     print "Difference: %s" % session.difference
@@ -1368,13 +1368,25 @@ def movements_process():
         ).select().first()
 
         # Wich offset / payment concept to record
-        offset_concept = db.concept[payment_terms.concept_id]
+        # option based offset concept
+
+        if document.receipts == True:
+            if operation.type == "S":
+                offset_concept_id = db(db.option.name == \
+                "sales_receipt_offset_concept_id").select().first().value
+            elif operation.type == "P":
+                offset_concept_id = db(db.option.name == \
+                "purchases_receipt_offset_concept_id").select().first().value
+        else:
+            offset_concept_id = payment_terms.concept_id
+
+        offset_concept = db.concept[offset_concept_id]
 
         # TODO: validate current account limit if offset concept is
         # current account. Move validation to auxiliar function
 
         if (offset_concept.current_account == \
-        True) and (operation.type == "S"):
+        True) and (operation.type == "S") and (not document.receipts == True):
             if operation.subcustomer_id is not None:
                 current_account_value = \
                 crm.subcustomer_current_account_value( \
