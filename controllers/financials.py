@@ -24,7 +24,7 @@ def operations_values(operations):
                         entry += float(movement.amount)
                     elif movement.amount < 0:
                         exit += float(movement.amount)*(-1)
-            except RuntimeError, e:
+            except (RuntimeError, AttributeError), e:
                 print str(e)
 
             difference = entry -exit
@@ -42,7 +42,7 @@ def current_accounts_type():
     requires = IS_IN_SET({"C":"Customer", "S":"Supplier"}), \
     widget = SQLFORM.widgets.radio.widget, default = "C"))
     if form.accepts(request.vars, session):
-        print "%s was chosen" % request.vars.current_account_type
+        print "Current accounts type: %s" % request.vars.current_accounts_type
         session.current_accounts_type = request.vars.current_accounts_type
         redirect(URL(f="current_accounts_data"))
     return dict(form = form)
@@ -115,6 +115,9 @@ def current_accounts_detail():
     print "Dates: ", starts, ends, due
     
     # TODO: repair query (returns no records or incomplete)
+    # As the time value query is datetime based,
+    # exact day matching does not work
+    
     q = (db.operation.customer_id == customer_id) & (db.operation.supplier_id == supplier_id) & (db.operation.posted >= starts) & (db.operation.posted <= ends)
     q &= ((db.operation.due_date <= due) | (db.operation.due_date == None))
 
@@ -201,11 +204,21 @@ def current_accounts_payment():
 
         # todo: auto operation values (fund, subcustomer, other)
 
+        # receipt payment terms
         if len(request.vars.payment_terms) > 0:
             payment_terms_id = request.vars.payment_terms
 
+        # get the concept db record
+        concept = db.concept[request.vars.concept]
+
+        # current account movement amount
+        amount = float(request.vars.amount)
+
+        # new receipt/current accounts operation
         operation_id = db.operation.insert(customer_id = session.current_accounts_customer, supplier_id = session.current_accounts_supplier, document_id = request.vars.document, type = operation_type, payment_terms_id = payment_terms_id)
-        db.movement.insert(operation_id = operation_id, amount = difference, value = difference, quantity = 1, concept_id = request.vars.concept)
+
+        # current accounts movement
+        db.movement.insert(operation_id = operation_id, amount = amount, value = amount, quantity = 1, concept_id = concept.concept_id)
         session.operation_id = operation_id
 
         print "Operation details: %s" % str(db.operation[operation_id])
