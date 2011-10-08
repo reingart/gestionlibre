@@ -764,9 +764,11 @@ def ria_product_billing():
     billing_form = billing_form)
 
 
-###############################################
-#### Sequential operation processing (no ria) #
-###############################################
+
+
+####################################################################
+############ Sequential operation processing (no RIA) ##############
+####################################################################
 
 
 def movements_start():
@@ -1363,13 +1365,78 @@ def movements_process():
     operation_id = session.operation_id
     operation = db.operation[operation_id]
     document = operation.document_id
+    movements = db(db.movement.operation_id == operation_id).select()
 
     stock_updated = False
+
+    # receipt documents movement and offset change
+    if document.receipts == True:
+        receipt_default_offset_concept_id = db(db.option.name == \
+        "receipt_default_offset_concept_id").select().first().value
+        
+        if operation.type == "S":
+            receipt_offset_concept_id = db(db.option.name == \
+            "sales_receipt_offset_concept_id").select().first().value
+            
+        elif operation.type == "P":
+            receipt_offset_concept_id = db(db.option.name == \
+            "purchases_receipt_offset_concept_id").select().first().value
+
+        receipt_offset_concept = db.concept[receipt_offset_concept_id]
+
+        # Search current account movements
+        has_current_account_movements = False
+
+        for movement in movements:
+            try:
+                movement_concept = db(db.concept.concept_id == \
+                movement.concept_id).select().first()
+
+                if (movement_concept.current_account != True) and \
+                (movement_concept.payment_method != True):
+                    # change the movement concept for booking/current accounts
+                    # add movement concept to the item description
+
+                    # invert values if needed
+                    if (receipt_offset_concept.entry == movement_concept.entry) or (receipt_offset_concept.exit == movement_concept.exit):
+                        amount = movement.amount
+                    else:
+                        amount = (-1)*movement.amount
+
+                    movement.update_record(concept_id = \
+                    receipt_offset_concept_id, \
+                    description = movement_concept.description, amount = amount)
+
+                    # set operation with current account movements
+                    # for offset concept selection
+                    if receipt_offset_concept.current_account == True:
+                        has_current_account_movements = True
+
+                elif movement_concept.current_account == True:
+                    has_current_account_movements = True
+            except RuntimeError, e:
+                print str(e)
+
+        print "The operation has current account movements: %s" % has_current_account_movements
+
+        if has_current_account_movements:
+            # set the default payment concept as offset
+            offset_concept_id = receipt_default_offset_concept_id
+        else:
+            offset_concept_id = receipt_offset_concept_id
+        print "Setting offset concept to %s" % db.concept[receipt_offset_concept_id].description
+        
+    else:
+        offset_concept_id = payment_terms.concept_id
+
+    # end of receipt documents movement and offset change
+
 
     # Calculate difference for payments
     session.difference = movements_difference(operation_id)
     print "Movements process. Operation: %s" % operation_id
     print "session.difference :%s" % session.difference
+
 
     if abs(session.difference) > 0.01:
         # offset / payment terms movement
@@ -1380,28 +1447,6 @@ def movements_process():
 
         # Wich offset / payment concept to record
         # option based offset concept
-
-        if document.receipts == True:
-            # Search current account movements
-            has_current_account_movements = False
-            movements = db(db.movement.operation_id == operation_id).select()
-            for movement in movements:
-                if movement.concept_id.current_account == True:
-                    has_current_account_movements = True
-            print "The operation has current account movements: %s" % has_current_account_movements
-            
-            if has_current_account_movements:
-                # set the default payment concept as offset
-                offset_concept_id = db(db.option.name == "receipt_default_offset_concept_id").select().first().value
-            else:
-                if operation.type == "S":
-                    offset_concept_id = db(db.option.name == \
-                    "sales_receipt_offset_concept_id").select().first().value
-                elif operation.type == "P":
-                    offset_concept_id = db(db.option.name == \
-                    "purchases_receipt_offset_concept_id").select().first().value
-        else:
-            offset_concept_id = payment_terms.concept_id
 
         offset_concept = db.concept[offset_concept_id]
 
