@@ -758,7 +758,7 @@ def ria_product_billing():
             # set invoice as current operation
             session.operation_id = invoice_id
             # redirect to movements edition
-            redirect(URL(c="operations", f="movements"))
+            redirect(URL(c="operations", f="ria_movements"))
 
     return dict(customer_form = customer_form, \
     billing_form = billing_form)
@@ -1244,11 +1244,15 @@ def movements_difference(operation_id):
     rows_exit = db(q_exit).select()
     print "Exits: %s" % str([row.movement.amount for row in rows_exit])
 
+    # Value inversion gives unexpected difference amounts in documents
+    # TODO: complete difference evaluation including Entry/Exit parameters
+    
     difference = float(sum([row.movement.amount for row in \
     rows_exit if row.movement.amount is not None], 0) \
     - sum([row.movement.amount for row \
-    in rows_entry if row.movement.amount is not None], 0)) * invert_value
-    
+    in rows_entry if row.movement.amount is not None], 0))
+    # * invert_value
+
     print "Difference: %s" % difference
 
     return difference
@@ -1447,6 +1451,9 @@ def movements_process():
                     "Operation processing failed: debt limit reached")
 
         # Offset / Payment movement
+        # TODO: change difference sign checking debit/credit
+        # for now it only calculates correctly if offset concept has exit = True
+        
         movement_id = db.movement.insert(operation_id = \
         operation_id, concept_id = offset_concept.concept_id, \
         quantity = 1, amount = session.difference, value = \
@@ -1465,13 +1472,15 @@ def movements_process():
     # process operation
     if document.countable and operation.type in ("S", "P"):
         result = operations.process(db, session, session.operation_id)
+        # print "Bypassing the operation processing"
+        # result = True
 
     # change stock values if requested
     if (session.get("update_stock", False) == True) and (result != False):
         stock_updated = movements_stock(operation_id)
 
     if (result == False) or (stock_updated == False):
-        message = "The operation processing failed"        
+        message = "The operation processing failed. Booking ok: %s. Stock ok: %s" % (result, stock_updated)
     else:
         message = "Operation successfully processed"
         

@@ -175,10 +175,12 @@ def current_accounts_payment():
     if session.current_accounts_type == "S":
         point_of_sale_id = db(db.option.name == "purchases_payment_point_of_sale_id").select().first().value
         operation_type = "P"
+        invert_value = -1
 
     elif session.current_accounts_type == "C":
         point_of_sale_id = db(db.option.name == "sales_payment_point_of_sale_id").select().first().value
         operation_type = "S"
+        invert_value = 1
 
     # get the default payment terms for current accounts
     payment_terms_id = db(db.option.name == "current_account_payment").select().first().value
@@ -191,7 +193,7 @@ def current_accounts_payment():
     # calculate difference from values array
     values = session.current_accounts_values
     
-    difference = sum([values[v][2] for v in values], 0.0)
+    difference = sum([values[v][2] for v in values], 0.0) * invert_value
     print "Calculated difference: %s" % difference
 
     # pre-operation form
