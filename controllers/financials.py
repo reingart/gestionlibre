@@ -16,14 +16,23 @@ def operations_values(operations):
         entry = 0.0
         exit = 0.0
         difference = 0.0
+
+        # Change amount sign when operation has invert property
+        # TODO: Move invert test to debit/credit properties
+
+        if operation.document_id.invert == True:
+            invert_value = -1
+        else:
+            invert_value = 1
+            
         movements = db(db.movement.operation_id == operation.operation_id).select()
         for movement in movements:
             try:
                 if movement.concept_id.current_account == True:
                     if movement.amount > 0:
-                        entry += float(movement.amount)
+                        entry += float(movement.amount)*invert_value
                     elif movement.amount < 0:
-                        exit += float(movement.amount)*(-1)
+                        exit += float(movement.amount)*(-1)*invert_value
             except (RuntimeError, AttributeError), e:
                 print str(e)
 

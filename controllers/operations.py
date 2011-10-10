@@ -1367,6 +1367,16 @@ def movements_process():
     document = operation.document_id
     movements = db(db.movement.operation_id == operation_id).select()
 
+    # offset / payment terms movement
+    # Long notation for record id == 0 db issue
+    payment_terms = db( \
+    db.payment_terms.payment_terms_id == operation.payment_terms_id \
+    ).select().first()
+
+    # Purchases offset custom concept
+    purchases_payment_terms_concept_id = db((db.option.name == "purchases_payment_terms_concept_id") & (db.option.args == str(payment_terms.payment_terms_id))).select().first().value
+    print "For purchases: %s payment is recorded as id %s" % (payment_terms.description, purchases_payment_terms_concept_id)
+    
     stock_updated = False
 
     # receipt documents movement and offset change
@@ -1427,7 +1437,10 @@ def movements_process():
         print "Setting offset concept to %s" % db.concept[receipt_offset_concept_id].description
         
     else:
-        offset_concept_id = payment_terms.concept_id
+        if operation.type == "P" and (purchases_payment_terms_concept_id is not None) and document.invoices:
+            offset_concept_id = purchases_payment_terms_concept_id
+        else:
+            offset_concept_id = payment_terms.concept_id
 
     # end of receipt documents movement and offset change
 
@@ -1439,12 +1452,6 @@ def movements_process():
 
 
     if abs(session.difference) > 0.01:
-        # offset / payment terms movement
-        # Long notation for record id == 0 db issue
-        payment_terms = db( \
-        db.payment_terms.payment_terms_id == operation.payment_terms_id \
-        ).select().first()
-
         # Wich offset / payment concept to record
         # option based offset concept
 

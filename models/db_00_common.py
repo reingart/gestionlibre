@@ -114,6 +114,7 @@ db.define_table('debugging',
 db.define_table('option',
     Field('option_id', 'id'),
     Field('name', unique=True, requires=IS_NOT_EMPTY()), # "option_1"
+    Field('args'), # a value to perform name-args searches (i.e. id or id1 | ... idn)
     Field('description'),
     Field('type', requires=IS_NOT_EMPTY(), default = 'string'), # a valid dal field type
     Field('represent'),
