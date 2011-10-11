@@ -118,7 +118,7 @@ def current_accounts_detail():
 
     # convert ISO to datetime object for DAL compatibility
     starts = datetime.datetime(int(starts_list[0]), int(starts_list[1]), int(starts_list[2]), 0, 0, 0)
-    ends = datetime.datetime(int(ends_list[0]), int(ends_list[1]), int(ends_list[2]), 0, 0, 0)
+    ends = datetime.datetime(int(ends_list[0]), int(ends_list[1]), int(ends_list[2]), 0, 0, 0) + datetime.timedelta(1)
     due = datetime.date(int(due_list[0]), int(due_list[1]), int(due_list[2]))
     
     print "Dates: ", starts, ends, due

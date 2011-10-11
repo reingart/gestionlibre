@@ -23,4 +23,3 @@ db.define_table('movement',
     Field('replica', type='boolean', default=False),
     format='%(description)s',
     migrate=migrate)
- 

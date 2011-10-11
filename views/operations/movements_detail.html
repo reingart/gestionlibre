@@ -16,7 +16,7 @@ None selected
 {{pass}}
 </h3>
 
-{{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add payment method", _href=URL(f="movements_add_payment_method"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}} | {{=A("Discount/Surcharges", _href=URL(f="movements_add_discount_surcharge"))}} | {{=A("Process operation", _href=URL(f="movements_process"))}} | {{=A("Select price list", _href=URL(f="movements_price_list"))}}
+{{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add payment method", _href=URL(f="movements_add_payment_method"))}} | {{=A("Add article", _href=URL(f="movements_articles"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Add tax", _href=URL(f="movements_add_tax"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}} | {{=A("Discount/Surcharges", _href=URL(f="movements_add_discount_surcharge"))}} | {{=A("Process operation", _href=URL(f="movements_process"))}} | {{=A("Select price list", _href=URL(f="movements_price_list"))}}
 
 {{=HR()}}
 <h3>Options</h3>
@@ -31,6 +31,14 @@ Operation
 </li>
 <li>
 Warehouse: {{=warehouse}} ({{=A("Change", _href=URL(f="movements_select_warehouse"))}})
+</li>
+<li>
+Taxes are
+{{if update_taxes == True:}}
+ updated
+{{elif update_taxes == False:}}
+ not updated
+{{pass}} ({{=A("Change", _href=URL(f="movements_option_update_taxes"))}})
 </li>
 </ul>
 

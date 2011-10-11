@@ -773,7 +773,10 @@ def ria_product_billing():
 
 def movements_start():
     """ Initial operation form """
-    
+
+    # erease stock update values
+    session.update_stock_list = set()
+
     form = SQLFORM.factory(Field("type", \
     requires=IS_IN_SET({"T": "Stock", "S": \
     "Sales", "P": "Purchases"}), \
@@ -798,7 +801,7 @@ def movements_header():
     default_supplier_option = db(db.option.name == "default_supplier_id").select().first()
     default_customer_option = db(db.option.name == "default_customer_id").select().first()
     customer_option = supplier_option = None
-    
+
     if operation.type == "S":
         fields = ["code", "description", "supplier_id", \
         "customer_id", \
@@ -807,9 +810,15 @@ def movements_header():
         "cost_center_id", "observations", "subcustomer_id", \
         "salesperson_id", "jurisdiction_id"]
         supplier_option = default_supplier_option
-        
+
+        # Document form options
+        s = db(db.document.entry == True)
+
     elif operation.type == "T":
         fields = None
+
+        # Document form options
+        s = db(db.document.stock == True)
         
     elif operation.type == "P":
         fields = ["code", "description", "supplier_id", \
@@ -818,7 +827,13 @@ def movements_header():
         "branch", "due_date", "voided", "fund_id", \
         "cost_center_id", "observations", "jurisdiction_id"]
         customer_option = default_customer_option
-        
+
+        # Document form options
+        s = db(db.document.exit == True)
+
+    # Document filter by Sales, Purchases or Stock
+    db.operation.document_id.requires = IS_IN_DB(s, "document.document_id", "%(description)s")
+
     form = SQLFORM(db.operation, operation_id, \
     fields = fields)
 
@@ -861,6 +876,15 @@ def movements_detail():
 
     operation_id = session.operation_id
 
+    # Operation options
+    update_stock = session.get("update_stock", None)
+    warehouse_id = session.get("warehouse_id", None)
+    # Tax items are updated by default
+    
+    update_taxes = session.get("update_taxes", None)
+    if update_taxes is None:
+        update_taxes = session.update_taxes = True
+    
     # selected price list or None
     price_list_id = session.get("price_list_id", None)
     if price_list_id is not None:
@@ -879,10 +903,6 @@ def movements_detail():
     # { header:table, ... h:t} dictionary
     movements = dict()
 
-    # Operation options
-    update_stock = session.get("update_stock", None)
-    warehouse_id = session.get("warehouse_id", None)
-    
     if warehouse_id is not None:
         warehouse = db.warehouse[warehouse_id].description
     else:
@@ -912,7 +932,7 @@ def movements_detail():
     
     rows = s.select()
     movements["items"] = SQLTABLE(rows, \
-    columns = columns, headers = headers)
+    columns = columns, headers = headers, linkto=URL(f="movements_modify_item"))
    
     # Payments
     q = db.movement.concept_id == db.concept.concept_id
@@ -925,7 +945,7 @@ def movements_detail():
     
     rows = s.select()
     movements["payments"] = SQLTABLE(rows, \
-    columns = columns, headers = headers)
+    columns = columns, headers = headers, linkto=URL(f="movements_modify_item"))
 
     # Checks
     q = db.bank_check.operation_id == operation_id
@@ -943,7 +963,7 @@ def movements_detail():
         "bank_check.due_date": "Due date", \
         "bank_check.number": "Number", \
         "bank_check.amount": "Amount"
-        })
+        }, linkto=URL(f="movements_modify_item"))
     
     # Taxes
     q = db.movement.concept_id == db.concept.concept_id
@@ -953,16 +973,29 @@ def movements_detail():
     
     rows = s.select()
     movements["taxes"] = SQLTABLE(rows, \
-    columns = columns, headers = headers)
+    columns = columns, headers = headers, linkto=URL(f="movements_modify_item"))
 
     return dict(operation = operation, \
     movements = movements, price_list = price_list, \
     update_stock = update_stock, warehouse = warehouse, \
     customer = customer, subcustomer = subcustomer, \
-    supplier = supplier)
+    supplier = supplier, update_taxes = update_taxes)
+
 
 def movements_add_item():
-    """ Ads an item movement to the operation. """
+    """ Adds an item movement to the operation.
+
+    Note: on-form item value edition needs AJAX and js events
+    for db price queries
+    """
+
+    try:
+        concept_id = request.args[1]
+    except (ValueError, IndexError, TypeError):
+        concept_id = None
+
+    # update stock option
+    update_stock_list = session.get("update_stock_list", set())
     
     operation_id = session.operation_id
     operation = db.operation[operation_id]
@@ -972,31 +1005,100 @@ def movements_add_item():
 
     form = SQLFORM.factory(Field("item", \
     requires=IS_IN_DB(db(db.concept.internal != True), \
-    "concept.concept_id", "%(description)s")), \
-    Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6)))
+    "concept.concept_id", "%(description)s"), default = concept_id), \
+    Field("value", "double", comment = "Blank for price list values"), \
+    Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6)), Field("update_stock", "boolean", default = True))
 
     if form.accepts(request.vars, session):
         # Get the concept record
-        concept = db.concept[request.vars.item]
-        concept_id = concept.concept_id
+        concept_id = request.vars.item
         quantity = float(request.vars.quantity)
-        value = amount = None
+        try:
+            value = float(request.vars.value)
+        except (ValueError, TypeError):
+            # no value specified
+            value = None
+        amount = None
 
-        # Calculate price, value, quantity, amount
-        if price_list_id is not None:
+        print "Item value input: %s" % value
+
+        # Calculate price
+        if (price_list_id is not None) and (value is None):
             price = db((db.price.price_list_id == price_list_id \
             ) & (db.price.concept_id == concept_id)).select().first()
             value = price.value
+            
+        # calculated amount for the movement
+        try:
             amount = value * quantity
+        except (ValueError, TypeError):
+            # No price list or item value
+            amount = None
 
         # Create the new operation item
-        db.movement.insert(operation_id = operation_id, \
+        movement_id = db.movement.insert(operation_id = operation_id, \
         amount = amount, value = value, concept_id = concept_id, \
         quantity = quantity)
-        print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
+        print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s, Movement: %s" % (operation_id, amount, value, concept_id, quantity, movement_id)
+
+        # add movement to temporary stock update list
+        if request.vars.update_stock:
+            update_stock_list.add(int(movement_id))
+            print "Update stock temporary list: %s" % update_stock_list
+            session.update_stock_list = update_stock_list
 
         redirect(URL(f="movements_detail"))
 
+    return dict(form = form)
+
+
+def movements_modify_item():
+    """ Modify an operation's item (or movement). """
+
+    operation_id = session.operation_id
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+    movement = db.movement[request.args[1]]
+
+    form = SQLFORM.factory(Field("item", \
+    requires=IS_IN_DB(db(db.concept.internal != True), \
+    "concept.concept_id", "%(description)s"), default = movement.concept_id), \
+    Field("value", "double", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6), default = movement.value), \
+    Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6), default = movement.quantity), \
+    Field("delete", "boolean", default = False, comment = "The item will be removed without confirmation"))
+
+    if form.accepts(request.vars, session):
+        print "Delete value is %s" % request.vars.delete
+        if request.vars.delete:
+            # erase the db record if marked for deletion
+            print "Erasing record %s" % movement.movement_id
+            movement.delete_record()
+        else:
+            # Get the concept record
+            concept_id = request.vars.item
+            quantity = float(request.vars.quantity)
+            value = amount = None
+
+            """
+            # Calculate price, value, quantity, amount            
+            price_list_id = session.get("price_list_id", None)
+            if price_list_id is not None:
+                price = db((db.price.price_list_id == price_list_id \
+                ) & (db.price.concept_id == concept_id)).select().first()
+
+            # not used (price/value should be pre-established by a db insert form)
+            """
+
+            value = float(request.vars.value)
+            amount = value * quantity
+
+            # Modify the operation item
+            movement.update_record(\
+            amount = amount, value = value, concept_id = concept_id, \
+            quantity = quantity)
+            print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
+
+        redirect(URL(f="movements_detail"))
     return dict(form = form)
 
 
@@ -1327,8 +1429,14 @@ def movements_amount(operation_id):
 
 def movements_update(operation_id):
     """ Operation maintenance (amounts, checks, taxes, difference) """
+    # Get options
+    update_taxes = session.get("update_taxes", False)
+    
     update = False
-    taxes = movements_taxes(operation_id)
+
+    if update_taxes == True:
+        taxes = movements_taxes(operation_id)
+        
     checks = movements_checks(operation_id)
     session.difference = movements_difference(operation_id)
     db.operation[operation_id].update_record( \
@@ -1374,8 +1482,13 @@ def movements_process():
     ).select().first()
 
     # Purchases offset custom concept
-    purchases_payment_terms_concept_id = db((db.option.name == "purchases_payment_terms_concept_id") & (db.option.args == str(payment_terms.payment_terms_id))).select().first().value
-    print "For purchases: %s payment is recorded as id %s" % (payment_terms.description, purchases_payment_terms_concept_id)
+    try:
+        purchases_payment_terms_concept_id = db((db.option.name == "purchases_payment_terms_concept_id") & (db.option.args == str(payment_terms.payment_terms_id))).select().first().value
+    except AttributeError, e:
+        print str(e)
+        purchases_payment_terms_concept_id = None
+        
+    print "For purchases: %s payment is recorded as concept id %s" % (payment_terms.description, purchases_payment_terms_concept_id)
     
     stock_updated = False
 
@@ -1548,6 +1661,16 @@ def movements_option_update_stock():
         session.update_stock = True
     redirect(URL(f="movements_detail"))
 
+def movements_option_update_taxes():
+    """ Switch session update taxes value """
+    if session.update_taxes == True:
+        session.update_taxes = False
+    elif session.update_taxes == False:
+        session.update_taxes = True
+
+    print "Change update taxes value to %s" % session.update_taxes    
+    redirect(URL(f="movements_detail"))    
+
 def movements_select_warehouse():
     form = SQLFORM.factory(Field("warehouse", \
     requires = IS_IN_DB(db(db.warehouse), \
@@ -1558,6 +1681,7 @@ def movements_select_warehouse():
     return dict(form = form)
 
 def movements_stock(operation_id):
+    update_stock_list = session.get("update_stock_list", set())
     result = False
     movements = db(db.movement.operation_id == operation_id).select()
     document = db.operation[operation_id].document_id
@@ -1567,7 +1691,7 @@ def movements_stock(operation_id):
         concept = db(db.concept.concept_id == movement.concept_id \
         ).select().first()
         if (concept is not None) and (warehouse_id is \
-        not None) and (concept.stock == True):
+        not None) and (concept.stock == True) and (movement.movement_id in update_stock_list):
             stock = db(( \
             db.stock.warehouse_id == warehouse_id) \
             & (db.stock.concept_id == concept.concept_id) \
@@ -1581,6 +1705,7 @@ def movements_stock(operation_id):
                     value -= movement.quantity
 
                 # update stock value
+                print "Updating stock id: %s as %s" % (stock.stock_id, value)
                 stock.update_record(value = value)
 
                 items += 1
@@ -1644,3 +1769,32 @@ def movements_add_payment_method():
         redirect(URL(f="movements_detail"))
 
     return dict(form = form)
+
+
+def movements_add_tax():
+    operation = db.operation[session.operation_id]
+    s = db(db.concept.tax == True)
+    form = SQLFORM.factory(Field("concept", requires = IS_IN_DB(s, "concept.concept_id", "%(description)s")), Field("value", "double", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6)))
+    if form.accepts(request.vars, session):
+        db.movement.insert(operation_id = operation.operation_id, concept_id = request.vars.concept, value = request.vars.value, quantity = 1, amount = request.vars.value)
+        redirect(URL(f="movements_detail"))
+    return dict(form = form)
+
+
+def movements_articles():
+    form = SQLFORM.factory(Field("category", "reference category", requires = IS_IN_DB(db, db.category, "%(description)s")), Field("subcategory", "reference subcategory", requires = IS_IN_DB(db, db.subcategory, "%(description)s")), Field("supplier", "reference supplier", requires = IS_IN_DB(db, db.supplier, "%(legal_name)s")))
+    table = None
+    
+    if form.accepts(request.vars, session, keepvalues = True):
+        # list items for selection
+        q = db.concept.category_id == request.vars.category
+        q &= db.concept.subcategory_id == request.vars.subcategory
+        q &= db.concept.supplier_id == request.vars.supplier
+        rows = db(q).select()
+
+        columns = ["concept.concept_id", "concept.code", "concept.description", "concept.family_id", "concept.color_id"]
+        headers = {"concept.concept_id": "Select", "concept.code": "Code", "concept.description": "Description", "concept.family_id": "Family", "concept.color_id": "Color"}
+        
+        table = SQLTABLE(rows, columns = columns, headers = headers, linkto = URL(f="movements_add_item"))
+        
+    return dict(form = form, table = table)

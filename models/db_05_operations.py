@@ -18,7 +18,7 @@ db.define_table('concept',
     Field('addition', type='date'),
     Field('deletion', type='date'),
     Field('tax_id', 'reference concept'), # self table reference
-    Field('supplier_id', 'integer'), # reference
+    Field('supplier_id', 'reference supplier'), # reference
     Field('customer_id', 'integer'), # reference
     Field('account_id', 'reference account'),# reference
     Field('measure', type='string', length=1),
