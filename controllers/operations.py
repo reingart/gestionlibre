@@ -1,10 +1,16 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
 # intente algo como
 
 import datetime
 
 operations = local_import("operations")
 crm = local_import("crm")
+
+
+####################################################################
+##   Auxiliar functions
+####################################################################
+
 
 # list of orderable concepts
 # returns a dict with value, name pairs for
@@ -19,6 +25,265 @@ def orderable_concepts(limit_by = None):
             break
     return the_dict
 
+
+def movements_taxes(operation_id):
+    """ Performs tax operations for the given operation """
+
+    # TODO: clean zero amount tax items,
+    # Separate the movements values
+    # processing in a function
+
+    # WARNING: db.table[0] returns None
+
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+    # number of tax items
+    items = 0
+    taxes = dict()
+    data = list()
+    for movement in db(db.movement.operation_id == operation_id \
+    ).select():
+        # Compute the tax values if required
+        concept = db(db.concept.concept_id == movement.concept_id \
+        ).select().first()
+
+        # Calculate movement amount without taxes
+        try:
+            amount = float(movement.value) * float(movement.quantity)
+        except (TypeError, ValueError, AttributeError):
+            amount = None
+
+        if (concept is not None) and (concept.taxed):
+            tax = db.concept[concept.tax_id]
+            # None taxes can occur if a
+            # concept is taxed but has no
+            # tax concept as reference
+            if (tax is not None) and (amount is not None):
+                tax_amount = (float(amount) * float(tax.amount)) \
+                - float(amount)
+                try:
+                    taxes[tax.concept_id] += tax_amount
+                except KeyError:
+                    taxes[tax.concept_id] = tax_amount
+
+                if not document.discriminate:
+                    # add to item amount if not discriminated
+                    movement.update_record(amount = float( \
+                    amount) + tax_amount)
+
+    for tax_concept_id in taxes:
+        tax = db.concept[tax_concept_id]
+        # Get and increase or create tax item
+        if document.discriminate:
+            tax_record = db(( \
+            db.movement.concept_id == tax_concept_id) & ( \
+            db.movement.operation_id == operation_id \
+            )).select().first()
+
+            if tax_record is None:
+                tax_record_id = db.movement.insert( \
+                operation_id = operation_id, \
+                value = taxes[tax_concept_id], \
+                amount = taxes[tax_concept_id], \
+                concept_id = tax_concept_id, quantity = 1)
+                tax_record = db.movement[tax_record_id]
+            else:
+                tax_record.update_record(amount = taxes[tax_concept_id], \
+                value = taxes[tax_concept_id])
+    items = len(taxes)
+    return items
+
+
+def movements_checks(operation_id):
+    """ Movements check processing """
+    # TODO: erease checks movement if amount is 0
+    # TODO: return warnings/errors
+    concept_id = None
+    checks = db(db.bank_check.operation_id == operation_id).select()
+    operation = db.operation[operation_id]
+    document = db.document[operation.document_id]
+
+    if operation.type == "S":
+        concept_id = db( \
+        db.option.name == "sales_check_input_concept" \
+        ).select().first().value
+    elif operation.type == "P":
+        concept_id = db( \
+        db.option.name == "purchases_check_input_concept" \
+        ).select().first().value
+    else:
+        # Do not input checks if it is a stock operation
+        return 0
+
+    # get or create the movement
+    if concept_id is not None:
+        q = db.movement.operation_id == operation_id
+        q &= db.movement.concept_id == concept_id
+        s = db(q)
+
+        if len(checks) > 0:
+            checks_movement = s.select().first()
+            if (checks_movement is None):
+                checks_movement_id = db.movement.insert( \
+                operation_id = operation_id, \
+                concept_id = concept_id)
+
+                # Get the new checks movement db record
+                checks_movement = \
+                db.movement[checks_movement_id]
+
+            # Calculate the total amount and update the
+            # checks movement
+            checks_movement.update_record( \
+            amount = sum([check.amount for check in checks]))
+
+    else:
+        # no concept configured for checks
+        return 0
+
+    return len(checks)
+
+
+
+def movements_difference(operation_id):
+    # None for unresolved amounts
+    difference = None
+    invert_value = 1
+    operation = db.operation[operation_id]
+    document = operation.document_id
+    if document.invert: invert_value = -1
+
+    # draft movements algorithm:
+    # difference = exit concepts - entry c.
+    q_entry = db.movement.concept_id == db.concept.concept_id
+    q_entry &= db.concept.entry == True
+    q_entry &= db.movement.operation_id == session.operation_id
+
+    q_exit = db.movement.concept_id == db.concept.concept_id
+    q_exit &= db.concept.exit == True
+    q_exit &= db.movement.operation_id == session.operation_id
+
+    print "Calculate movements difference...."
+
+    rows_entry = db(q_entry).select()
+    print "Entries: %s" % str([row.movement.amount for row in rows_entry])
+
+    rows_exit = db(q_exit).select()
+    print "Exits: %s" % str([row.movement.amount for row in rows_exit])
+
+    # Value inversion gives unexpected difference amounts in documents
+    # TODO: complete difference evaluation including Entry/Exit parameters
+
+    difference = float(sum([row.movement.amount for row in \
+    rows_exit if row.movement.amount is not None], 0) \
+    - sum([row.movement.amount for row \
+    in rows_entry if row.movement.amount is not None], 0))
+    # * invert_value
+
+    print "Difference: %s" % difference
+
+    return difference
+
+
+def movements_update(operation_id):
+    """ Operation maintenance (amounts, checks, taxes, difference) """
+    # Get options
+    update_taxes = session.get("update_taxes", False)
+
+    update = False
+
+    if update_taxes == True:
+        taxes = movements_taxes(operation_id)
+
+    checks = movements_checks(operation_id)
+    session.difference = movements_difference(operation_id)
+    db.operation[operation_id].update_record( \
+    amount = movements_amount(operation_id))
+    update = True
+    return update
+
+
+def movements_amount(operation_id):
+    """ Calculate the total amount of the operation"""
+
+    amount = None
+
+    q_items = db.movement.concept_id == db.concept.concept_id
+    q_items &= db.concept.internal != True
+    q_items &= db.concept.discounts != True
+    q_items &= db.concept.surcharges != True
+    q_items &= db.concept.current_account != True
+    q_items &= db.movement.operation_id == operation_id
+
+    q_discounts = db.movement.concept_id == db.concept.concept_id
+    q_discounts &= db.concept.discounts == True
+    q_discounts &= db.movement.operation_id == operation_id
+
+    q_surcharges = db.movement.concept_id == db.concept.concept_id
+    q_surcharges &= db.concept.surcharges == True
+    q_surcharges &= db.movement.operation_id == operation_id
+
+    rows_items = db(q_items).select()
+    rows_surcharges = db(q_surcharges).select()
+    rows_discounts = db(q_discounts).select()
+
+    items = float(abs(sum([item.movement.amount for item \
+    in rows_items if item.movement.amount is not None])))
+    surcharges = float(abs(sum([item.movement.amount \
+    for item in rows_surcharges if item.movement.amount is not None])))
+    discounts = float(abs(sum([item.movement.amount \
+    for item in rows_discounts if item.movement.amount is not None])))
+
+    amount = float(items + surcharges -discounts)
+
+    return amount
+
+
+def movements_stock(operation_id):
+    update_stock_list = session.get("update_stock_list", set())
+    result = False
+    movements = db(db.movement.operation_id == operation_id).select()
+    document = db.operation[operation_id].document_id
+    warehouse_id = session.get("warehouse_id", None)
+    items = 0
+    for movement in movements:
+        concept = db(db.concept.concept_id == movement.concept_id \
+        ).select().first()
+        if (concept is not None) and (warehouse_id is \
+        not None) and (concept.stock == True) and (movement.movement_id in update_stock_list):
+            stock = db(( \
+            db.stock.warehouse_id == warehouse_id) \
+            & (db.stock.concept_id == concept.concept_id) \
+            ).select().first()
+            if stock is not None:
+                value = stock.value
+                if (document is not None) and ( \
+                document.invert == True):
+                    value += movement.quantity
+                else:
+                    value -= movement.quantity
+
+                # update stock value
+                print "Updating stock id: %s as %s" % (stock.stock_id, value)
+                stock.update_record(value = value)
+
+                items += 1
+
+    if items > 0: result = True
+    return result
+
+
+
+def is_editable(operation_id):
+    """ Check if operation can be modified"""
+    operation = db.operation[operation_id]
+    if operation.voided or operation.canceled or operation.processed:
+        return False
+    return True
+
+####################################################################
+#   Controller actions
+####################################################################
 
 @auth.requires_login()
 def index():
@@ -875,7 +1140,7 @@ def movements_detail():
     """
 
     operation_id = session.operation_id
-
+    
     # Operation options
     update_stock = session.get("update_stock", None)
     warehouse_id = session.get("warehouse_id", None)
@@ -892,7 +1157,11 @@ def movements_detail():
     else: price_list = None
 
     # update operation values
-    update = movements_update(operation_id)
+    if is_editable(operation_id):
+        update = movements_update(operation_id)
+    else:
+        update = False
+        print "Operation %s is not editable" % operation_id
 
     # Get the operation dal objects
     operation = db.operation[operation_id]
@@ -1036,10 +1305,13 @@ def movements_add_item():
             amount = None
 
         # Create the new operation item
-        movement_id = db.movement.insert(operation_id = operation_id, \
-        amount = amount, value = value, concept_id = concept_id, \
-        quantity = quantity)
-        print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s, Movement: %s" % (operation_id, amount, value, concept_id, quantity, movement_id)
+        if is_editable(operation_id):
+            movement_id = db.movement.insert(operation_id = operation_id, \
+            amount = amount, value = value, concept_id = concept_id, \
+            quantity = quantity)
+            print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s, Movement: %s" % (operation_id, amount, value, concept_id, quantity, movement_id)
+        else:
+            "Operation %s is not editable" % operation_id
 
         # add movement to temporary stock update list
         if request.vars.update_stock:
@@ -1071,8 +1343,11 @@ def movements_modify_item():
         print "Delete value is %s" % request.vars.delete
         if request.vars.delete:
             # erase the db record if marked for deletion
-            print "Erasing record %s" % movement.movement_id
-            movement.delete_record()
+            if is_editable(operation_id):
+                print "Erasing record %s" % movement.movement_id
+                movement.delete_record()
+            else:
+                print "Operation %s is not editable" % operation_id
         else:
             # Get the concept record
             concept_id = request.vars.item
@@ -1093,82 +1368,17 @@ def movements_modify_item():
             amount = value * quantity
 
             # Modify the operation item
-            movement.update_record(\
-            amount = amount, value = value, concept_id = concept_id, \
-            quantity = quantity)
-            print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
+            if is_editable(operation_id):
+                movement.update_record(\
+                amount = amount, value = value, concept_id = concept_id, \
+                quantity = quantity)
+                print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
+            else:
+                print "Operation %s is not editable" % operation_id
 
         redirect(URL(f="movements_detail"))
     return dict(form = form)
 
-
-def movements_taxes(operation_id):
-    """ Performs tax operations for the given operation """
-    
-    # TODO: clean zero amount tax items, 
-    # Separate the movements values
-    # processing in a function
-    
-    # WARNING: db.table[0] returns None
-    
-    operation = db.operation[operation_id]
-    document = db.document[operation.document_id]
-    # number of tax items
-    items = 0
-    taxes = dict()
-    data = list()
-    for movement in db(db.movement.operation_id == operation_id \
-    ).select():
-        # Compute the tax values if required
-        concept = db(db.concept.concept_id == movement.concept_id \
-        ).select().first()
-
-        # Calculate movement amount without taxes
-        try:
-            amount = float(movement.value) * float(movement.quantity)
-        except (TypeError, ValueError, AttributeError):
-            amount = None
-        
-        if (concept is not None) and (concept.taxed):
-            tax = db.concept[concept.tax_id]
-            # None taxes can occur if a
-            # concept is taxed but has no
-            # tax concept as reference
-            if (tax is not None) and (amount is not None):
-                tax_amount = (float(amount) * float(tax.amount)) \
-                - float(amount)
-                try:
-                    taxes[tax.concept_id] += tax_amount
-                except KeyError:
-                    taxes[tax.concept_id] = tax_amount
-
-                if not document.discriminate:
-                    # add to item amount if not discriminated
-                    movement.update_record(amount = float( \
-                    amount) + tax_amount)
-
-    for tax_concept_id in taxes:
-        tax = db.concept[tax_concept_id]
-        # Get and increase or create tax item
-        if document.discriminate:
-            tax_record = db(( \
-            db.movement.concept_id == tax_concept_id) & ( \
-            db.movement.operation_id == operation_id \
-            )).select().first()
-
-            if tax_record is None:
-                tax_record_id = db.movement.insert( \
-                operation_id = operation_id, \
-                value = taxes[tax_concept_id], \
-                amount = taxes[tax_concept_id], \
-                concept_id = tax_concept_id, quantity = 1)
-                tax_record = db.movement[tax_record_id]
-
-            else:
-                tax_record.update_record(amount = taxes[tax_concept_id], \
-                value = taxes[tax_concept_id])
-    items = len(taxes)
-    return items
 
 def movements_add_check():
     operation_id = session.operation_id
@@ -1185,55 +1395,6 @@ def movements_add_check():
     if form.accepts(request.vars, session):
         redirect(URL(f="movements_detail"))
     return dict(form = form)
-
-def movements_checks(operation_id):
-    """ Movements check processing """
-    # TODO: erease checks movement if amount is 0
-    # TODO: return warnings/errors
-    concept_id = None
-    checks = db(db.bank_check.operation_id == operation_id).select()
-    operation = db.operation[operation_id]
-    document = db.document[operation.document_id]
-    
-    if operation.type == "S":
-        concept_id = db( \
-        db.option.name == "sales_check_input_concept" \
-        ).select().first().value
-    elif operation.type == "P":
-        concept_id = db( \
-        db.option.name == "purchases_check_input_concept" \
-        ).select().first().value
-    else:
-        # Do not input checks if it is a stock operation
-        return 0
-    
-    # get or create the movement
-    if concept_id is not None:
-        q = db.movement.operation_id == operation_id
-        q &= db.movement.concept_id == concept_id
-        s = db(q)
-
-        if len(checks) > 0:
-            checks_movement = s.select().first()
-            if (checks_movement is None):
-                checks_movement_id = db.movement.insert( \
-                operation_id = operation_id, \
-                concept_id = concept_id)
-
-                # Get the new checks movement db record
-                checks_movement = \
-                db.movement[checks_movement_id]
-
-            # Calculate the total amount and update the
-            # checks movement
-            checks_movement.update_record( \
-            amount = sum([check.amount for check in checks]))
-
-    else:
-        # no concept configured for checks
-        return 0
-            
-    return len(checks)
 
 
 def movements_current_account_concept():
@@ -1276,6 +1437,14 @@ def movements_current_account_quotas():
     return dict(form = form)
 
 def movements_current_account_data():
+    # Get operation id and check if it is not
+    # editable
+    operation_id = session.operation_id
+    if not is_editable(operation_id):
+        print "Operation %s is not editable" % operation_id
+        redirect(URL(f="movements_detail"))
+        
+    # Begin current account data processing
     try:
         amount_fields = [Field("quota_%s_amount" % (x+1), \
         "double", requires=IS_FLOAT_IN_RANGE(0, 1e6), \
@@ -1293,18 +1462,21 @@ def movements_current_account_data():
         db.movement.insert( \
         concept_id = session.current_account_concept_id, \
         amount = session.difference, value = session.difference, \
-        quantity = 1, operation_id = session.operation_id)
+        quantity = 1, operation_id = operation_id)
         redirect(URL(f="movements_detail"))
 
     for x in range(session.current_account_quotas):
         form_fields.append(amount_fields[x])
         form_fields.append(due_date_fields[x])
 
+    # Present form for user input with
+    # quota fields
     form = SQLFORM.factory(*form_fields)
     if form.accepts(request.vars, session, formname="quotas_data_form"):
         # create or modify the payment movements and quotas
         due_dates = dict()
         amounts = dict()
+        # Search for current account items
         for var in request.vars:
             if var.endswith("amount"):
                 amounts[var.split("_")[1]] = float(request.vars[var])
@@ -1316,54 +1488,17 @@ def movements_current_account_data():
             db.movement.insert( \
             concept_id = session.current_account_concept_id, \
             amount = amount, value = amount, \
-            quantity = 1, operation_id = session.operation_id)
+            quantity = 1, operation_id = operation_id)
             # insert payments/plans
         redirect(URL(f="movements_detail"))
     return dict(form = form)
 
 
-def movements_difference(operation_id):
-    # None for unresolved amounts
-    difference = None
-    invert_value = 1
-    operation = db.operation[operation_id]
-    document = operation.document_id
-    if document.invert: invert_value = -1
-
-    # draft movements algorithm:
-    # difference = exit concepts - entry c.
-    q_entry = db.movement.concept_id == db.concept.concept_id
-    q_entry &= db.concept.entry == True
-    q_entry &= db.movement.operation_id == session.operation_id
-    
-    q_exit = db.movement.concept_id == db.concept.concept_id
-    q_exit &= db.concept.exit == True
-    q_exit &= db.movement.operation_id == session.operation_id    
-
-    print "Calculate movements difference...."
-    
-    rows_entry = db(q_entry).select()
-    print "Entries: %s" % str([row.movement.amount for row in rows_entry])
-    
-    rows_exit = db(q_exit).select()
-    print "Exits: %s" % str([row.movement.amount for row in rows_exit])
-
-    # Value inversion gives unexpected difference amounts in documents
-    # TODO: complete difference evaluation including Entry/Exit parameters
-    
-    difference = float(sum([row.movement.amount for row in \
-    rows_exit if row.movement.amount is not None], 0) \
-    - sum([row.movement.amount for row \
-    in rows_entry if row.movement.amount is not None], 0))
-    # * invert_value
-
-    print "Difference: %s" % difference
-
-    return difference
-
-
 def movements_add_discount_surcharge():
     """ Select discount to apply """
+
+    # Get the session stored operation id
+    operation_id = session.operation_id
     
     # user input: concept, % or value, value, description
     q = (db.concept.surcharges == True) | (db.concept.discounts == True)
@@ -1376,7 +1511,7 @@ def movements_add_discount_surcharge():
             # processing. Move total amount
             # adding to function "total(operation_id)"
             q = db.movement.concept_id == db.concept.concept_id
-            q &= db.movement.operation_id == session.operation_id
+            q &= db.movement.operation_id == operation_id
             q &= db.concept.internal != True
             q &= db.concept.tax != True
             rows = db(q).select()
@@ -1384,65 +1519,19 @@ def movements_add_discount_surcharge():
             float(sum([abs(item.movement.amount) \
             for item in rows])) / 100
         else: value = float(request.vars.value)
-        
-        db.movement.insert(operation_id = session.operation_id, \
-        description = request.vars.description, quantity = 1, \
-        amount = value, value = value, \
-        concept_id = request.vars.concept)
+
+        if is_editable(operation_id):
+            db.movement.insert(operation_id = operation_id, \
+            description = request.vars.description, quantity = 1, \
+            amount = value, value = value, \
+            concept_id = request.vars.concept)
+        else:
+            print "Operation %s is not editable" % operation_id
+            
         redirect(URL(f="movements_detail"))
+        
     return dict(form = form)
 
-def movements_amount(operation_id):
-    """ Calculate the total amount of the operation"""
-
-    amount = None
-
-    q_items = db.movement.concept_id == db.concept.concept_id
-    q_items &= db.concept.internal != True
-    q_items &= db.concept.discounts != True
-    q_items &= db.concept.surcharges != True
-    q_items &= db.concept.current_account != True
-    q_items &= db.movement.operation_id == operation_id
-    
-    q_discounts = db.movement.concept_id == db.concept.concept_id
-    q_discounts &= db.concept.discounts == True
-    q_discounts &= db.movement.operation_id == operation_id
-
-    q_surcharges = db.movement.concept_id == db.concept.concept_id
-    q_surcharges &= db.concept.surcharges == True
-    q_surcharges &= db.movement.operation_id == operation_id
-
-    rows_items = db(q_items).select()
-    rows_surcharges = db(q_surcharges).select()
-    rows_discounts = db(q_discounts).select()
-
-    items = float(abs(sum([item.movement.amount for item \
-    in rows_items if item.movement.amount is not None])))
-    surcharges = float(abs(sum([item.movement.amount \
-    for item in rows_surcharges if item.movement.amount is not None])))
-    discounts = float(abs(sum([item.movement.amount \
-    for item in rows_discounts if item.movement.amount is not None])))
-
-    amount = float(items + surcharges -discounts)
-
-    return amount
-
-def movements_update(operation_id):
-    """ Operation maintenance (amounts, checks, taxes, difference) """
-    # Get options
-    update_taxes = session.get("update_taxes", False)
-    
-    update = False
-
-    if update_taxes == True:
-        taxes = movements_taxes(operation_id)
-        
-    checks = movements_checks(operation_id)
-    session.difference = movements_difference(operation_id)
-    db.operation[operation_id].update_record( \
-    amount = movements_amount(operation_id))
-    update = True
-    return update
 
 def movements_list():
     """ List of operations"""
@@ -1471,6 +1560,10 @@ def movements_process():
     message = None
 
     operation_id = session.operation_id
+
+    if not is_editable(operation_id):
+        return dict(message = "Could not process the operation: it is not editable")
+    
     operation = db.operation[operation_id]
     document = operation.document_id
     movements = db(db.movement.operation_id == operation_id).select()
@@ -1653,6 +1746,7 @@ def movements_process():
     
     return dict(message=message)
 
+
 def movements_option_update_stock():
     """ Switch session update stock value """
     if session.update_stock == True:
@@ -1680,38 +1774,6 @@ def movements_select_warehouse():
         redirect(URL(f="movements_detail"))
     return dict(form = form)
 
-def movements_stock(operation_id):
-    update_stock_list = session.get("update_stock_list", set())
-    result = False
-    movements = db(db.movement.operation_id == operation_id).select()
-    document = db.operation[operation_id].document_id
-    warehouse_id = session.get("warehouse_id", None)
-    items = 0
-    for movement in movements:
-        concept = db(db.concept.concept_id == movement.concept_id \
-        ).select().first()
-        if (concept is not None) and (warehouse_id is \
-        not None) and (concept.stock == True) and (movement.movement_id in update_stock_list):
-            stock = db(( \
-            db.stock.warehouse_id == warehouse_id) \
-            & (db.stock.concept_id == concept.concept_id) \
-            ).select().first()
-            if stock is not None:
-                value = stock.value
-                if (document is not None) and ( \
-                document.invert == True):
-                    value += movement.quantity
-                else:
-                    value -= movement.quantity
-
-                # update stock value
-                print "Updating stock id: %s as %s" % (stock.stock_id, value)
-                stock.update_record(value = value)
-
-                items += 1
-
-    if items > 0: result = True
-    return result
 
 
 def movements_add_payment_method():
