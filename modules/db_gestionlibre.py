@@ -4,70 +4,71 @@ import datetime
 
 # table/field functions
 
-# custom serial code creation. Include plain text between \t tab chars: "A\tThis is not randomized\tBN"
-# A: alphabetical, B: alphanumeric, N: integers between zero and nine, \t [text] \t: normal text bounds
-# To include "A", "B", "N" use the \tA\t syntax. Auxiliar characters are allowed outside \t \t separators
-# As expected, no \t characters are allowed inside escaped text
-# TODO: Simplify/standarize serial code pseudo-syntax for user html form input
-
-CUSTOM_SERIAL_CODE_STRUCTURE = "AAAA-NNNN-BBBBBB"
-def new_custom_serial_code(structure=CUSTOM_SERIAL_CODE_STRUCTURE):
-    import random
-    def generate_custom_serial_code(s):
-        tmpstring = ""
-        skip = False
-        for element in s:
-            if not skip:
-                if element == "A":
-                    element = random.choice([char for char in \
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random char
-                elif element == "N":
-                    element = random.randint(0,9) # get random integer
-                elif element == "B":
-                    element = random.choice([char for char in \
-                    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random alphanumeric
-                elif element == "\t":
-                    skip = True
-                    continue
-            else:
-                if element == "\t":
-                    skip = False
-                    continue
-            tmpstring += str(element)
-        return tmpstring
-
-    while True:
-        the_code = generate_custom_serial_code(structure)
-        if len(db(db.custom_serial_code.code == the_code).select()) <= 0:
-            # store serial code in db
-            db.custom_serial_code.insert(code = the_code)
-            return the_code
-
-    return None
-
-def today():
-    return datetime.date.today()
-
-def now():
-    return datetime.datetime.now()
-
-def price_format(price):
-    try:
-        r = "%s - %s" % (price.concept_id.description, price.price_list_id.description)
-    except (ValueError, KeyError, AttributeError, IndexError, RuntimeError):
-        r = "Format error. price index " + str(price.price_id)
-    return r
-
-def operation_format(r):
-    try:
-        of = "%s %s" % (db.document[r.document_id].description, r.operation_id)
-    except (AttributeError, KeyError, ValueError, TypeError):
-        of = "Format error: operation %s" % r.operation_id
-    return of
-
-
-
 def define_tables(db, web2py = True, migrate = True):
+
+    # custom serial code creation. Include plain text between \t tab chars: "A\tThis is not randomized\tBN"
+    # A: alphabetical, B: alphanumeric, N: integers between zero and nine, \t [text] \t: normal text bounds
+    # To include "A", "B", "N" use the \tA\t syntax. Auxiliar characters are allowed outside \t \t separators
+    # As expected, no \t characters are allowed inside escaped text
+    # TODO: Simplify/standarize serial code pseudo-syntax for user html form input
+
+
+    CUSTOM_SERIAL_CODE_STRUCTURE = "AAAA-NNNN-BBBBBB"
+    def new_custom_serial_code(structure=CUSTOM_SERIAL_CODE_STRUCTURE):
+        import random
+        def generate_custom_serial_code(s):
+            tmpstring = ""
+            skip = False
+            for element in s:
+                if not skip:
+                    if element == "A":
+                        element = random.choice([char for char in \
+                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random char
+                    elif element == "N":
+                        element = random.randint(0,9) # get random integer
+                    elif element == "B":
+                        element = random.choice([char for char in \
+                        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random alphanumeric
+                    elif element == "\t":
+                        skip = True
+                        continue
+                else:
+                    if element == "\t":
+                        skip = False
+                        continue
+                tmpstring += str(element)
+            return tmpstring
+
+        while True:
+            the_code = generate_custom_serial_code(structure)
+            if len(db(db.custom_serial_code.code == the_code).select()) <= 0:
+                # store serial code in db
+                db.custom_serial_code.insert(code = the_code)
+                return the_code
+
+        return None
+
+    def today():
+        return datetime.date.today()
+
+    def now():
+        return datetime.datetime.now()
+
+    def price_format(price):
+        try:
+            r = "%s - %s" % (price.concept_id.description, price.price_list_id.description)
+        except (ValueError, KeyError, AttributeError, IndexError, RuntimeError):
+            r = "Format error. price index " + str(price.price_id)
+        return r
+
+    def operation_format(r):
+        try:
+            of = "%s %s" % (db.document[r.document_id].description, r.operation_id)
+        except (AttributeError, KeyError, ValueError, TypeError):
+            of = "Format error: operation %s" % r.operation_id
+        return of
+
+
 
     if not web2py:
         # Auth tables
@@ -1359,6 +1360,7 @@ def define_tables(db, web2py = True, migrate = True):
         Field('discount', type='decimal(10,2)'),
         Field('surcharge', type='decimal(10,2)'),
         Field('replica', type='boolean', default=False),
+        Field('bank_check_id', 'integer'), # reference
         format='%(description)s',
         migrate=migrate)
 
