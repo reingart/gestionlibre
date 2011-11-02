@@ -46,3 +46,11 @@ def initialize():
     
     message="Done"
     return dict(message=message, records = len(records))
+
+
+def db_to_csv():
+    errors = []
+    dumped = []
+    with open('db_dump_file.csv','w') as the_file:
+       db.export_to_csv_file(the_file)
+    return dict(message="The CSV data was stored at your web2py root folder")

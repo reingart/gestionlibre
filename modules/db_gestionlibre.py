@@ -857,8 +857,8 @@ def define_tables(db, web2py = True, migrate = True):
         Field('description'),
         Field('account_id', 'reference account'),  # reference
         Field('concept_id', 'reference concept'),  # reference
-        Field('starting', type='datetime', default=0),
-        Field('ending', type='datetime', default=0),
+        Field('starting', type='datetime'),
+        Field('ending', type='datetime'),
         Field('next', type='integer', default=0),  # reference?
         Field('replica', type='boolean', default=False),
         format='%(description)s',
