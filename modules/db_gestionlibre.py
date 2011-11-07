@@ -72,7 +72,7 @@ def define_tables(db, web2py = True, migrate = True):
 
     if not web2py:
         # Auth tables
-        db.define_table("auth_user", Field("first_name"), Field("second_name"), \
+        db.define_table("auth_user", Field("first_name"), Field("last_name"), \
         Field("email"), Field("password"), Field("registration_key"), \
         Field("reset_password_key"))
 

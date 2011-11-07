@@ -134,6 +134,8 @@ auth.settings.login_onaccept = custom_post_login
 
 migrate = True
 
+
 # import GestionLibre database definitions
+
 import db_gestionlibre
 db_gestionlibre.define_tables(db, web2py = True)
