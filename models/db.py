@@ -88,49 +88,6 @@ crud.settings.auth = None                      # =auth to enforce authorization 
 # As expected, no \t characters are allowed inside escaped text
 # TODO: Simplify/standarize serial code pseudo-syntax for user html form input
 
-CUSTOM_SERIAL_CODE_STRUCTURE = "AAAA-NNNN-BBBBBB"
-def new_custom_serial_code(structure=CUSTOM_SERIAL_CODE_STRUCTURE):
-    import random
-    def generate_custom_serial_code(s):
-        tmpstring = ""
-        skip = False
-        for element in s:
-            if not skip:
-                if element == "A":
-                    element = random.choice([char for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random char
-                elif element == "N":
-                    element = random.randint(0,9) # get random integer
-                elif element == "B":
-                    element = random.choice([char for char in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"]) # get random alphanumeric
-                elif element == "\t":
-                    skip = True
-                    continue
-            else:
-                if element == "\t":
-                    skip = False
-                    continue
-            tmpstring += str(element)
-        return tmpstring
-
-    while True:
-        the_code = generate_custom_serial_code(structure)
-        if len(db(db.custom_serial_code.code == the_code).select()) <= 0:
-            # store serial code in db
-            db.custom_serial_code.insert(code = the_code)
-            return the_code
-
-    return None
-
-def custom_post_login(arg):
-    contacts_per_user = len(db(db.contact_user.user_id == auth.user_id).select())
-    if contacts_per_user < 1:
-        redirect(URL(c="registration", f="post_register_specify_firm"))        
-
-def custom_post_register(arg):
-    redirect(URL(c="registration", f="post_register_specify_firm"))
-
-auth.settings.register_onaccept = custom_post_register
-auth.settings.login_onaccept = custom_post_login
 
 migrate = True
 
@@ -138,4 +95,4 @@ migrate = True
 # import GestionLibre database definitions
 
 import db_gestionlibre
-db_gestionlibre.define_tables(db, web2py = True)
+db_gestionlibre.define_tables(db, auth, web2py = True)

@@ -4,7 +4,7 @@ import datetime
 
 # table/field functions
 
-def define_tables(db, web2py = True, migrate = True):
+def define_tables(db, auth, web2py = True, migrate = True):
 
     # custom serial code creation. Include plain text between \t tab chars: "A\tThis is not randomized\tBN"
     # A: alphabetical, B: alphanumeric, N: integers between zero and nine, \t [text] \t: normal text bounds
@@ -48,6 +48,25 @@ def define_tables(db, web2py = True, migrate = True):
 
         return None
 
+
+    # login/register forms
+    
+    def custom_post_login(arg):
+        contacts_per_user = len(db(db.contact_user.user_id == auth.user_id).select())
+        if contacts_per_user < 1:
+            redirect(URL(a="gestionlibre", c="registration", f="post_register_specify_firm"))
+
+    def custom_post_register(arg):
+        redirect(URL(a="gestionlibre", c="registration", f="post_register_specify_firm"))
+
+
+    # auth settings
+    
+    if web2py == True:
+        auth.settings.register_onaccept = custom_post_register
+        auth.settings.login_onaccept = custom_post_login
+
+
     def today():
         return datetime.date.today()
 
@@ -67,7 +86,6 @@ def define_tables(db, web2py = True, migrate = True):
         except (AttributeError, KeyError, ValueError, TypeError):
             of = "Format error: operation %s" % r.operation_id
         return of
-
 
 
     if not web2py:
