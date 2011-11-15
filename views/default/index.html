@@ -2,6 +2,7 @@
 {{extend 'layout.html'}}
 
 {{if 'message' in globals():}}
+
 <h1>{{=message}}</h1>
 
 <hr />
@@ -29,3 +30,6 @@
 
 {{block left_sidebar}}New Left Sidebar Content{{end}}
 {{block right_sidebar}}New Right Sidebar Content{{end}}
+
+{{=H3("request.env")}}
+{{=request.env}}

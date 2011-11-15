@@ -95,4 +95,4 @@ migrate = True
 # import GestionLibre database definitions
 
 import db_gestionlibre
-db_gestionlibre.define_tables(db, auth, web2py = True)
+db_gestionlibre.define_tables(db, auth, globals(), web2py = True)

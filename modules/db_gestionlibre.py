@@ -4,7 +4,7 @@ import datetime
 
 # table/field functions
 
-def define_tables(db, auth, web2py = True, migrate = True):
+def define_tables(db, auth, env, web2py = True, migrate = True):
 
     # custom serial code creation. Include plain text between \t tab chars: "A\tThis is not randomized\tBN"
     # A: alphabetical, B: alphanumeric, N: integers between zero and nine, \t [text] \t: normal text bounds
@@ -12,6 +12,9 @@ def define_tables(db, auth, web2py = True, migrate = True):
     # As expected, no \t characters are allowed inside escaped text
     # TODO: Simplify/standarize serial code pseudo-syntax for user html form input
 
+    # Env is globals() for web2py environment and custom shell env instance for desktop app
+    # bind translator instance name
+    T = env["T"]
 
     CUSTOM_SERIAL_CODE_STRUCTURE = "AAAA-NNNN-BBBBBB"
     def new_custom_serial_code(structure=CUSTOM_SERIAL_CODE_STRUCTURE):
@@ -102,10 +105,11 @@ def define_tables(db, auth, web2py = True, migrate = True):
         Field('code', unique = True),
         Field('description', type='string', length=50),
         Field('starting', type='date'),
-        Field('ending', type='date'),
+        Field('ending', type='date', label=T("ending")), # translation test
         Field('replica', type='boolean', default=False),
         format='%(description)s',
-        migrate=migrate)
+        migrate=migrate
+        )
 
     # db_00_common
 
