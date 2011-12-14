@@ -3,8 +3,8 @@
 
 import datetime
 
-operations = local_import("operations")
-crm = local_import("crm")
+import operations
+import crm
 
 
 ####################################################################
@@ -104,13 +104,15 @@ def movements_checks(operation_id):
     document = db.document[operation.document_id]
 
     if operation.type == "S":
-        concept_id = db( \
+        concept_id = db(db.concept.code == db(\
         db.option.name == "sales_check_input_concept" \
-        ).select().first().value
+        ).select().first().value).select().first().concept_id
+
     elif operation.type == "P":
-        concept_id = db( \
+        concept_id = db(db.concept.code == db( \
         db.option.name == "purchases_check_input_concept" \
-        ).select().first().value
+        ).select().first().value).select().first().concept_id
+        
     else:
         # Do not input checks if it is a stock operation
         return 0
@@ -163,13 +165,13 @@ def movements_difference(operation_id):
     q_exit &= db.concept.exit == True
     q_exit &= db.movement.operation_id == session.operation_id
 
-    print "Calculate movements difference...."
+    print T("Calculate movements difference....")
 
     rows_entry = db(q_entry).select()
-    print "Entries: %s" % str([row.movement.amount for row in rows_entry])
+    print T("Entries: %s") % str([row.movement.amount for row in rows_entry])
 
     rows_exit = db(q_exit).select()
-    print "Exits: %s" % str([row.movement.amount for row in rows_exit])
+    print T("Exits: %s") % str([row.movement.amount for row in rows_exit])
 
     # Value inversion gives unexpected difference amounts in documents
     # TODO: complete difference evaluation including Entry/Exit parameters
@@ -180,7 +182,7 @@ def movements_difference(operation_id):
     in rows_entry if row.movement.amount is not None], 0))
     # * invert_value
 
-    print "Difference: %s" % difference
+    print T("Difference: %s") % difference
 
     return difference
 
@@ -240,6 +242,8 @@ def movements_amount(operation_id):
 
 
 def movements_stock(operation_id):
+    """ TODO: Return False as result if any stock errors are found"""
+    
     update_stock_list = session.get("update_stock_list", set())
     result = False
     movements = db(db.movement.operation_id == operation_id).select()
@@ -264,14 +268,11 @@ def movements_stock(operation_id):
                     value -= movement.quantity
 
                 # update stock value
-                print "Updating stock id: %s as %s" % (stock.stock_id, value)
+                print T("Updating stock id: %(st)s as %(vl)s") % dict(st=stock.stock_id, vl=value)
                 stock.update_record(value = value)
-
                 items += 1
 
-    if items > 0: result = True
-    return result
-
+    return True
 
 
 def is_editable(operation_id):
@@ -309,14 +310,14 @@ def index():
     # get operation rows
     operations = the_set.select()
 
-    return dict(operations = operations, message="Administrative panel")
+    return dict(operations = operations, message=T("Administrative panel"))
 
 # base web interface for movements
 # administration
 @auth.requires_login()
 def ria_movements():
     # reset the current operation (sent client-side)
-    reset_operation_form = FORM(INPUT(_type="submit", _value="Reset operation"))
+    reset_operation_form = FORM(INPUT(_type="submit", _value=T("Reset operation")))
     if reset_operation_form.accepts(request.vars, formname="reset_operation"):
         session.operation_id = None
 
@@ -338,7 +339,7 @@ def ria_movements():
     # TODO: operation change shouldn't be allowed if processed
     form = SQLFORM(db.operation, operation_id, _id="operation_form")
     if form.accepts(request.vars):
-        response.flash = "Form accepted"
+        response.flash = T("Form accepted")
     
     # Process operation for accounting/other when accepted
     process_operation_form = FORM(INPUT(_value="Process", _type="submit"))
@@ -348,11 +349,11 @@ def ria_movements():
         # do not expose if operation was already processed
         # process/validate the operation
         if operations.process(db, session, operation_id):
-            response.flash = "Operation processed"
+            response.flash = T("Operation processed")
         else:
-            response.flash = "Could not process the operation"
+            response.flash = T("Could not process the operation")
     
-    return dict(message="Operation number %s" % operation_id, \
+    return dict(message=T("Operation number %s") % operation_id, \
     form = form, \
     reset_operation_form = reset_operation_form, \
     process_operation_form = process_operation_form)
@@ -368,9 +369,9 @@ def movements_element():
     form.vars.operation_id = session.operation_id
     
     if form.accepts(request.vars, session, keepvalues=True):
-        response.flash = "Form accepted"
+        response.flash = T("Form accepted")
     elif form.errors:
-        response.flash = "The form has errors"
+        response.flash = T("The form has errors")
         
     # query for operation movements
     movements_list = db(db.movement.operation_id == session.operation_id).select()
@@ -383,7 +384,7 @@ def movements_modify_element():
     form = SQLFORM(db.movement, movements_element, \
     _id="movements_modify_element_form")
     if form.accepts(request.vars, session):
-        response.flash = "Form accepted"
+        response.flash = T("Form accepted")
         redirect(URL(f="movements"))
     return dict(form=form)
 
@@ -424,7 +425,7 @@ def operation_installment():
         installment.update(quotas = len(quotas_list), \
         monthly_amount = quota_amount, starting_quota_id = quotas_list[0], \
         ending_quota_id = quotas_list[len(quotas_list) -1])
-        response.flash = "Installment created"
+        response.flash = T("Installment created")
 
     return dict(total = total, form = form, installment = installment)
 
@@ -438,7 +439,7 @@ def ria_new_customer_order():
     if len(request.args) > 0:
         session.operation_id = int(request.args[1])
 
-    reset_order = FORM(INPUT(_type="submit", _value="Reset order"))
+    reset_order = FORM(INPUT(_type="submit", _value=T("Reset order")))
     if reset_order.accepts(request.vars, session):
         session.operation_id = None
     contact_user = db(db.contact_user.user_id == auth.user_id).select().first()
@@ -462,29 +463,35 @@ def ria_new_customer_order():
     # Look for allowed orders in options db
     customer_allowed_orders = db(db.option.name == \
     "customer_allowed_orders").select().first()
+    
     if customer_allowed_orders and  isinstance( \
     customer_allowed_orders.value, basestring):
-        allowed_orders_list = [int(o) for o in \
+        allowed_orders_list = [\
+        db(db.document.code == str(o).strip()).select().first().document_id \
+        for o in \
         customer_allowed_orders.value.split("|") if len(o) > 0]
     else:
         allowed_orders_list = []
+        
     # Get the default order
-    default_order = db(db.option.name == \
-    "customer_default_order").select().first()
+    
+    default_order = db(db.document.code == db(db.option.name == \
+    "customer_default_order").select().first().value).select().first().document_id
+    
     if isinstance(default_order, basestring): \
     default_order = int(default_order)
 
     # create a new order with pre-populated user data
     if not "operation_id" in session.keys():
         customer_order = db.operation.insert( \
-        customer_id = customer, document_id = default_order.value)
+        customer_id = customer, document_id = default_order)
         session.operation_id = customer_order
     else:
         customer_order = session.operation_id
         if session.operation_id is None:
             customer_order = db.operation.insert( \
             customer_id = customer, \
-            document_id = default_order.value)
+            document_id = default_order)
             session.operation_id = customer_order
 
     form = SQLFORM(db.operation, customer_order, \
@@ -500,7 +507,7 @@ def ria_new_customer_order():
     if form.accepts(request.vars, session):
         db.operation[customer_order].update_record( \
         document_id = request.vars.order_type)
-        response.flash = "Form accepted"
+        response.flash = T("Form accepted")
 
     for order_document in order_documents:
         loop_count += 1
@@ -508,11 +515,11 @@ def ria_new_customer_order():
         if db.operation[customer_order].document_id \
         == order_document.document_id:
             checked = True
-        elif order_document.document_id == default_order.value:
+        elif order_document.document_id == default_order:
             checked = True
         else:
             checked = False
-        if order_document.document_id in allowed_orders_list:
+        if order_document.code in allowed_orders_list:
             order_options[order_document.document_id] = dict()
             order_options[order_document.document_id]["label"] = order_document.description
             order_options[order_document.document_id]["name"] = "order_type"
@@ -541,7 +548,7 @@ def new_customer_order_element():
         concept_id = request.vars.concept_id, \
         description = request.vars.description, \
         quantity = request.vars.quantity)
-        response.flash = "Form accepted"
+        response.flash = T("Form accepted")
     order_list = db(db.movement.operation_id == session.operation_id  \
     ).select()
     return dict(form=form, order_list = order_list)
@@ -687,10 +694,10 @@ def order_allocation():
             TD(w["stock"]), \
             INPUT(_name="order_allocation_%s_%s" % (customer, concept))))
 
-    form = FORM(TABLE(THEAD(TR(TH("Customer"),TH("Product code"), \
-    TH("Concept"), TH("Ordered"), TH("Allocated"), TH("Stock"), \
-    TH("Allocate"))), TBODY(*form_rows), TFOOT(TR(TD(), TD(), TD(), \
-    TD(), TD(), TD(), TD(INPUT(_value="Allocate orders", _type="submit"))))))
+    form = FORM(TABLE(THEAD(TR(TH(T("Customer")),TH(T("Product code")), \
+    TH(T("Concept")), TH(T("Ordered")), TH(T("Allocated")), TH(T("Stock")), \
+    TH(T("Allocate")))), TBODY(*form_rows), TFOOT(TR(TD(), TD(), TD(), \
+    TD(), TD(), TD(), TD(INPUT(_value=T("Allocate orders"), _type="submit"))))))
 
     # form processing:
     # classify allocated items by customer
@@ -737,8 +744,8 @@ def list_order_allocations():
     q &= db.document.books == True
     columns = ["operation.operation_id", "operation.code", \
     "operation.description", "operation.posted"]
-    headers={"operation.operation_id": "Edit", "operation.code":"Code", \
-    "operation.description": "Description", "operation.posted": "Posted"}
+    headers={"operation.operation_id": T("Edit"), "operation.code":T("Code"), \
+    "operation.description": T("Description"), "operation.posted": T("Posted")}
     order_allocations = SQLTABLE(db(q).select(), columns = columns, \
     headers = headers, \
     linkto=URL(c="operations", f="update_order_allocation"))
@@ -750,8 +757,8 @@ def update_order_allocation():
     db.movement.operation_id == request.args[1]).select(), \
     columns=["movement.movement_id", "movement.code","movement.concept_id", \
     "movement.quantity"], headers={"movement.movement_id": \
-    "ID", "movement.code": "Code", \
-    "movement.concept_id": "Concept", "movement.quantity": "Quantity"}, \
+    T("ID"), "movement.code": T("Code"), \
+    "movement.concept_id": T("Concept"), "movement.quantity": T("Quantity")}, \
     linkto=URL(c="operations", f="movements_modify_element"))
     return dict(order_allocation = order_allocation, movements = movements)
 
@@ -796,9 +803,9 @@ def packing_slip():
     movements = SQLTABLE(db(\
     db.movement.operation_id == packing_slip_id).select(), \
     columns=["movement.movement_id", "movement.code","movement.concept_id", \
-    "movement.quantity"], headers={"movement.movement_id": "ID", \
-    "movement.code": "Code", \
-    "movement.concept_id": "Concept", "movement.quantity": "Quantity"})
+    "movement.quantity"], headers={"movement.movement_id": T("ID"), \
+    "movement.code": T("Code"), \
+    "movement.concept_id": T("Concept"), "movement.quantity": T("Quantity")})
 
     return dict(packing_slip_form = packing_slip_form, \
     movements = movements, packing_slip_id = packing_slip_id)
@@ -811,7 +818,7 @@ def ria_receipt():
     operation_id = session.get("operation_id", None)
 
     # allow receipt reset
-    reset_receipt_form = FORM(INPUT(_type="submit", _value="Reset receipt"))
+    reset_receipt_form = FORM(INPUT(_type="submit", _value=T("Reset receipt")))
     if reset_receipt_form.accepts(request.vars, \
     formname="reset_receipt_form"):
         operation_id = session.operation_id = None
@@ -837,18 +844,18 @@ def ria_receipt():
         # Check as processed or return errors
         if operations.process(db, session, operation_id):
             operation.update_record(processed = True)
-            response.flash="Receipt processed"
+            response.flash=T("Receipt processed")
         else:
-            response.flash="Could not process the receipt"
+            response.flash=T("Could not process the receipt")
 
     receipt_form = crud.update(db.operation, operation_id)
     if receipt_form.accepts(request.vars, \
     formname="receipt_form"):
-        response.flash="Form accepted"
+        response.flash=T("Form accepted")
 
     if (document is None) or (document.receipts != True):
         # return error
-        response.flash="Warning! Wrong document type."
+        response.flash=T("Warning! Wrong document type.")
 
     return dict(receipt_form = receipt_form, \
     process_receipt_form = process_receipt_form, \
@@ -877,17 +884,17 @@ def receipt_checks():
         concept_id = current_account_concept.concept_id, value = request.vars.amount, \
         amount = request.vars.amount)
 
-        response.flash = "Item added"
+        response.flash = T("Item added")
 
     check_form.vars.operation_id = operation_id
 
     columns = ["bank_ckeck.bank_check_id", "bank_check.number", \
     "bank_check.customer_id", \
     "bank_check.code", "bank_check.description", "bank_check.amount"]
-    headers = {"bank_ckeck.bank_check_id": "Edit", \
-    "bank_check.number": "Number", "bank_check.customer_id": "Customer", \
-    "bank_check.code": "Code", "bank_check.description": "Description", \
-    "bank_check.amount": "Amount"}
+    headers = {"bank_ckeck.bank_check_id": T("Edit"), \
+    "bank_check.number": T("Number"), "bank_check.customer_id": T("Customer"), \
+    "bank_check.code": T("Code"), "bank_check.description": T("Description"), \
+    "bank_check.amount": T("Amount")}
 
     checks_list = SQLTABLE(db(\
     db.bank_check.operation_id == operation_id).select(), \
@@ -916,9 +923,9 @@ def receipt_items():
     columns = ["movement.movement_id", "movement.code", \
     "movement.description", \
     "movement.posted", "movement.amount", "movement.concept_id"]
-    headers = {"movement.movement_id": "Edit", "movement.code": "Code", \
-    "movement.description": "Description", "movement.posted": "Posted", \
-    "movement.amount": "Amount", "movement.concept_id": "Concept"}
+    headers = {"movement.movement_id": T("Edit"), "movement.code": T("Code"), \
+    "movement.description": T("Description"), "movement.posted": T("Posted"), \
+    "movement.amount": T("Amount"), "movement.concept_id": T("Concept")}
 
     receipt_item_form.vars.operation_id = session.operation_id
     receipt_items_list = SQLTABLE(db(\
@@ -934,10 +941,10 @@ def list_receipts():
     columns = ["operation.operation_id", "operation.code", \
     "operation.description", "document.description", \
     "operation.posted"]
-    headers = {"operation.operation_id": "Edit", \
-    "operation.code": "Code", "operation.description": "Description", \
-    "document.description": "Document", \
-    "operation.posted": "Posted"}
+    headers = {"operation.operation_id": T("Edit"), \
+    "operation.code": T("Code"), "operation.description": T("Description"), \
+    "document.description": T("Document"), \
+    "operation.posted": T("Posted")}
 
     receipts = SQLTABLE(db(q).select(), columns = columns, \
     headers = headers, linkto=URL(c="operations", f="movements"))
@@ -985,12 +992,12 @@ def ria_product_billing():
     document_options = [OPTION(document.description, \
     _value=document.document_id) for document in documents]
 
-    billing_form = FORM(TABLE(THEAD(TR(TH("Operation"),TH("Posted"), \
-    TH("Code"), TH("Description"), TH("Bill"))), \
+    billing_form = FORM(TABLE(THEAD(TR(TH(T("Operation")),TH(T("Posted")), \
+    TH(T("Code")), TH(T("Description")), TH(T("Bill")))), \
     TBODY(*packing_slips_rows), \
-    TFOOT(TR(TD(), TD(), TD(), TD(LABEL("Choose a document type", \
+    TFOOT(TR(TD(), TD(), TD(), TD(LABEL(T("Choose a document type"), \
     _for="document_id"), SELECT(*document_options, _name="document_id")), \
-    TD(INPUT(_value="Bill checked", _type="submit"))))))
+    TD(INPUT(_value=T("Bill checked"), _type="submit"))))))
 
     # operations marked for billing
     bill_items = []
@@ -1043,9 +1050,9 @@ def movements_start():
     session.update_stock_list = set()
 
     form = SQLFORM.factory(Field("type", \
-    requires=IS_IN_SET({"T": "Stock", "S": \
-    "Sales", "P": "Purchases"}), \
-    comment="Select an operation type"), Field("description"))
+    requires=IS_IN_SET({"T": T("Stock"), "S": \
+    T("Sales"), "P": T("Purchases")}), \
+    comment=T("Select an operation type")), Field("description"))
     
     if form.accepts(request.vars, session):
         # new operation
@@ -1063,8 +1070,8 @@ def movements_header():
     operation = db.operation[operation_id]
 
     # default form data
-    default_supplier_option = db(db.option.name == "default_supplier_id").select().first()
-    default_customer_option = db(db.option.name == "default_customer_id").select().first()
+    default_supplier_option = db(db.option.name == "default_supplier_code").select().first()
+    default_customer_option = db(db.option.name == "default_customer_code").select().first()
     customer_option = supplier_option = None
 
     if operation.type == "S":
@@ -1105,12 +1112,16 @@ def movements_header():
     # auto-complete header form
     if supplier_option is not None:
         try:
-            form.vars.supplier_id = int(supplier_option.value)
+            form.vars.supplier_id = int(
+            db(db.supplier.code == supplier_option.value).select().first().supplier_id
+            )
         except (ValueError, TypeError):
             form.vars.supplier_id = None
     elif customer_option is not None:
         try:
-            form.vars.customer_id = int(customer_option.value)
+            form.vars.customer_id = int(
+            db(db.customer.code == customer_option.value).select().first().customer_id
+            )
         except (ValueError, TypeError):
             form.vars.customer_id = None
 
@@ -1161,7 +1172,7 @@ def movements_detail():
         update = movements_update(operation_id)
     else:
         update = False
-        print "Operation %s is not editable" % operation_id
+        print T("Operation %s is not editable") % operation_id
 
     # Get the operation dal objects
     operation = db.operation[operation_id]
@@ -1175,7 +1186,7 @@ def movements_detail():
     if warehouse_id is not None:
         warehouse = db.warehouse[warehouse_id].description
     else:
-        warehouse = "None selected"
+        warehouse = T("None selected")
         
     if update_stock is None:
         update_stock = session.update_stock = False
@@ -1191,13 +1202,13 @@ def movements_detail():
     columns = ["movement.movement_id", "movement.code", \
     "movement.description", "movement.concept_id", \
     "movement.quantity", "movement.value", "movement.amount"]
-    headers = {"movement.movement_id": "Edit", \
-    "movement.code": "Code", \
-    "movement.description": "Description", \
-    "movement.concept_id": "Concept", \
-    "movement.quantity": "Quantity", \
-    "movement.value": "Value", \
-    "movement.amount": "Amount"}
+    headers = {"movement.movement_id": T("Edit"), \
+    "movement.code": T("Code"), \
+    "movement.description": T("Description"), \
+    "movement.concept_id": T("Concept"), \
+    "movement.quantity": T("Quantity"), \
+    "movement.value": T("Value"), \
+    "movement.amount": T("Amount")}
     
     rows = s.select()
     movements["items"] = SQLTABLE(rows, \
@@ -1227,11 +1238,11 @@ def movements_detail():
         "bank_check.number", "bank_check.amount"
         ],
         headers = {
-        "bank_check.bank_check_id": "Edit", \
-        "bank_check.bank_id": "Bank", \
-        "bank_check.due_date": "Due date", \
-        "bank_check.number": "Number", \
-        "bank_check.amount": "Amount"
+        "bank_check.bank_check_id": T("Edit"), \
+        "bank_check.bank_id": T("Bank"), \
+        "bank_check.due_date": T("Due date"), \
+        "bank_check.number": T("Number"), \
+        "bank_check.amount": T("Amount")
         }, linkto=URL(f="movements_modify_item"))
     
     # Taxes
@@ -1275,7 +1286,7 @@ def movements_add_item():
     form = SQLFORM.factory(Field("item", \
     requires=IS_IN_DB(db(db.concept.internal != True), \
     "concept.concept_id", "%(description)s"), default = concept_id), \
-    Field("value", "double", comment = "Blank for price list values"), \
+    Field("value", "double", comment = T("Blank for price list values")), \
     Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6)), Field("update_stock", "boolean", default = True))
 
     if form.accepts(request.vars, session):
@@ -1289,7 +1300,7 @@ def movements_add_item():
             value = None
         amount = None
 
-        print "Item value input: %s" % value
+        print T("Item value input: %s") % value
 
         # Calculate price
         if (price_list_id is not None) and (value is None):
@@ -1309,14 +1320,15 @@ def movements_add_item():
             movement_id = db.movement.insert(operation_id = operation_id, \
             amount = amount, value = value, concept_id = concept_id, \
             quantity = quantity)
-            print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s, Movement: %s" % (operation_id, amount, value, concept_id, quantity, movement_id)
+            print T("Operation: %(o)s. Amount: %(a)s. Value: %(v)s. Concept: %(c)s, Quantity: %(q)s, Movement: %(m)s") % dict(o=operation_id, a=amount, v=value, c=concept_id, q=quantity, m=movement_id)
         else:
-            "Operation %s is not editable" % operation_id
+            movement_id = None
+            print T("Operation %s is not editable") % operation_id
 
         # add movement to temporary stock update list
         if request.vars.update_stock:
-            update_stock_list.add(int(movement_id))
-            print "Update stock temporary list: %s" % update_stock_list
+            if movement_id is not None:
+                update_stock_list.add(int(movement_id))
             session.update_stock_list = update_stock_list
 
         redirect(URL(f="movements_detail"))
@@ -1337,17 +1349,17 @@ def movements_modify_item():
     "concept.concept_id", "%(description)s"), default = movement.concept_id), \
     Field("value", "double", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6), default = movement.value), \
     Field("quantity", requires = IS_FLOAT_IN_RANGE(-1e6, 1e6), default = movement.quantity), \
-    Field("delete", "boolean", default = False, comment = "The item will be removed without confirmation"))
+    Field("delete", "boolean", default = False, comment = T("The item will be removed without confirmation")))
 
     if form.accepts(request.vars, session):
-        print "Delete value is %s" % request.vars.delete
+        print T("Delete value is %s") % request.vars.delete
         if request.vars.delete:
             # erase the db record if marked for deletion
             if is_editable(operation_id):
-                print "Erasing record %s" % movement.movement_id
+                print T("Erasing record %s") % movement.movement_id
                 movement.delete_record()
             else:
-                print "Operation %s is not editable" % operation_id
+                print T("Operation %s is not editable") % operation_id
         else:
             # Get the concept record
             concept_id = request.vars.item
@@ -1372,9 +1384,9 @@ def movements_modify_item():
                 movement.update_record(\
                 amount = amount, value = value, concept_id = concept_id, \
                 quantity = quantity)
-                print "Operation: %s. Amount: %s. Value: %s. Concept: %s, Quantity: %s" % (operation_id, amount, value, concept_id, quantity)
+                print T("Operation: %(o)s. Amount: %(a)s. Value: %(v)s. Concept: %(c)s, Quantity: %(q)s") % dict(o=operation_id, a=amount, v=value, c=concept_id, q=quantity)
             else:
-                print "Operation %s is not editable" % operation_id
+                print T("Operation %s is not editable") % operation_id
 
         redirect(URL(f="movements_detail"))
     return dict(form = form)
@@ -1404,9 +1416,12 @@ def movements_current_account_concept():
     session.difference = movements_difference(operation_id)
     # create quotas based on user input
     # (for quotas number > 0)
+    
     # define number of quotas and due dates
-    session.quota_frequence = datetime.timedelta(int(db( \
-    db.option.name == "quota_frequence").select().first().value))
+    session.quota_frequence = datetime.timedelta(\
+    int(db(db.option.name == "quota_frequence"\
+    ).select().first().value))
+    
     session.today = datetime.date.today()
 
     if session.difference <= 0:
@@ -1441,7 +1456,7 @@ def movements_current_account_data():
     # editable
     operation_id = session.operation_id
     if not is_editable(operation_id):
-        print "Operation %s is not editable" % operation_id
+        print T("Operation %s is not editable") % operation_id
         redirect(URL(f="movements_detail"))
         
     # Begin current account data processing
@@ -1526,7 +1541,7 @@ def movements_add_discount_surcharge():
             amount = value, value = value, \
             concept_id = request.vars.concept)
         else:
-            print "Operation %s is not editable" % operation_id
+            print T("Operation %s is not editable") % operation_id
             
         redirect(URL(f="movements_detail"))
         
@@ -1539,13 +1554,13 @@ def movements_list():
     "operation.description", "operation.customer_id", \
     "operation.subcustomer_id", "operation.supplier_id", \
     "operation.document_id", "operation.posted"]
-    headers = {"operation.operation_id": "Edit", \
-    "operation.code": "Code", "operation.description": \
-    "Description", "operation.customer_id": "Customer", \
-    "operation.subcustomer_id": "Subcustomer", \
-    "operation.supplier_id": "Supplier", \
-    "operation.document_id": "Document", \
-    "operation.posted": "Posted"}
+    headers = {"operation.operation_id": T("Edit"), \
+    "operation.code": T("Code"), "operation.description": \
+    T("Description"), "operation.customer_id": T("Customer"), \
+    "operation.subcustomer_id": T("Subcustomer"), \
+    "operation.supplier_id": T("Supplier"), \
+    "operation.document_id": T("Document"), \
+    "operation.posted": T("Posted")}
     table = SQLTABLE(db(db.operation).select(), \
     columns = columns, headers = headers, \
     linkto=URL(c="operations", f="movements_select"))
@@ -1562,7 +1577,7 @@ def movements_process():
     operation_id = session.operation_id
 
     if not is_editable(operation_id):
-        return dict(message = "Could not process the operation: it is not editable")
+        return dict(message = T("Could not process the operation: it is not editable"))
     
     operation = db.operation[operation_id]
     document = operation.document_id
@@ -1576,27 +1591,37 @@ def movements_process():
 
     # Purchases offset custom concept
     try:
-        purchases_payment_terms_concept_id = db((db.option.name == "purchases_payment_terms_concept_id") & (db.option.args == str(payment_terms.payment_terms_id))).select().first().value
+        purchases_payment_terms_concept_id = db(\
+        (db.option.name == "purchases_payment_terms_concept_code") & (db.option.args == str(payment_terms.code)) \
+        ).select().first().value
+        
     except AttributeError, e:
         print str(e)
         purchases_payment_terms_concept_id = None
         
-    print "For purchases: %s payment is recorded as concept id %s" % (payment_terms.description, purchases_payment_terms_concept_id)
-    
+    print T("For purchases: %(pt)s payment is recorded as concept id %s(c)") % dict(pt=payment_terms.description, c=purchases_payment_terms_concept_id)
+
     stock_updated = False
 
     # receipt documents movement and offset change
     if document.receipts == True:
-        receipt_default_offset_concept_id = db(db.option.name == \
-        "receipt_default_offset_concept_id").select().first().value
         
+        receipt_default_offset_concept_id = db(\
+        db.concept.code == db(\
+        db.option.name == "receipt_default_offset_concept_code"\
+        ).select().first().value).select().first().concept_id
+
         if operation.type == "S":
-            receipt_offset_concept_id = db(db.option.name == \
-            "sales_receipt_offset_concept_id").select().first().value
-            
+            receipt_offset_concept_id = db(\
+            db.concept.code == db(\
+            db.option.name == "sales_receipt_offset_concept_code"\
+            ).select().first().value).select().first().concept_id
+
         elif operation.type == "P":
-            receipt_offset_concept_id = db(db.option.name == \
-            "purchases_receipt_offset_concept_id").select().first().value
+            receipt_offset_concept_id = db(\
+            db.concept.code == db(\
+            db.option.name == "purchases_receipt_offset_concept_code"\
+            ).select().first().value).select().first().concept_id
 
         receipt_offset_concept = db.concept[receipt_offset_concept_id]
 
@@ -1633,14 +1658,14 @@ def movements_process():
             except RuntimeError, e:
                 print str(e)
 
-        print "The operation has current account movements: %s" % has_current_account_movements
+        print T("The operation has current account movements: %s") % has_current_account_movements
 
         if has_current_account_movements:
             # set the default payment concept as offset
             offset_concept_id = receipt_default_offset_concept_id
         else:
             offset_concept_id = receipt_offset_concept_id
-        print "Setting offset concept to %s" % db.concept[receipt_offset_concept_id].description
+        print T("Setting offset concept to %s") % db.concept[receipt_offset_concept_id].description
         
     else:
         if operation.type == "P" and (purchases_payment_terms_concept_id is not None) and document.invoices:
@@ -1653,8 +1678,8 @@ def movements_process():
 
     # Calculate difference for payments
     session.difference = movements_difference(operation_id)
-    print "Movements process. Operation: %s" % operation_id
-    print "session.difference :%s" % session.difference
+    print T("Movements process. Operation: %s") % operation_id
+    print T("session.difference :%s") % session.difference
 
 
     if abs(session.difference) > 0.01:
@@ -1672,7 +1697,7 @@ def movements_process():
                 current_account_value = \
                 crm.subcustomer_current_account_value( \
                 db, operation.subcustomer_id)
-                print "Current account value: %s" % current_account_value
+                print T("Current account value: %s") % current_account_value
                 try:
                     # Get the current account limit
                     # allowed
@@ -1682,17 +1707,17 @@ def movements_process():
                     # No limit found
                     debt_limit = 0.00
                     
-                print "Debt limit: %s" % debt_limit
+                print T("Debt limit: %s") % debt_limit
 
                 if (current_account_value + session.difference) > debt_limit:
                     return dict(message= \
-                    "Operation processing failed: debt limit reached")
+                    T("Operation processing failed: debt limit reached"))
 
             elif operation.customer_id is not None:
                 current_account_value = \
                 crm.customer_current_account_value(db, \
                 operation.customer_id)
-                print "Current account value: %s" % current_account_value                
+                print T("Current account value: %s") % current_account_value                
                 try:
                     # Get the current account limit
                     # allowed
@@ -1702,11 +1727,11 @@ def movements_process():
                     # No limit found
                     debt_limit = 0.00
                     
-                print "Debt limit: %s" % debt_limit
+                print T("Debt limit: %s") % debt_limit
                 
                 if (current_account_value + session.difference) > debt_limit:
                     return dict(message= \
-                    "Operation processing failed: debt limit reached")
+                    T("Operation processing failed: debt limit reached"))
 
         # Offset / Payment movement
         # TODO: change difference sign checking debit/credit
@@ -1717,7 +1742,7 @@ def movements_process():
         quantity = 1, amount = session.difference, value = \
         session.difference)
 
-        print "Movement (offset): %s: %s" % (db.movement[movement_id].concept_id.description, db.movement[movement_id].amount)
+        print T("Movement (offset): %(mo)s: %(a)s") % dict(mo=db.movement[movement_id].concept_id.description, a=db.movement[movement_id].amount)
 
         # update the operation
         updated = movements_update(operation_id)
@@ -1738,12 +1763,11 @@ def movements_process():
         stock_updated = movements_stock(operation_id)
 
     if (result == False) or (stock_updated == False):
-        message = "The operation processing failed. Booking ok: %s. Stock ok: %s" % (result, stock_updated)
+        message = T("The operation processing failed. Booking ok: %(rs)s. Stock ok: %(st)s") % dict(rs=result, st=stock_updated)
     else:
-        message = "Operation successfully processed"
+        message = T("Operation successfully processed")
         
     # TODO: rollback on errors
-    
     return dict(message=message)
 
 
@@ -1762,7 +1786,7 @@ def movements_option_update_taxes():
     elif session.update_taxes == False:
         session.update_taxes = True
 
-    print "Change update taxes value to %s" % session.update_taxes    
+    print T("Change update taxes value to %s") % session.update_taxes    
     redirect(URL(f="movements_detail"))    
 
 def movements_select_warehouse():
@@ -1785,7 +1809,7 @@ def movements_add_payment_method():
     "decimal(10,2)"), Field("quotas", "integer"), \
     Field("surcharge", "double"), Field("detail"), \
     Field("payment_reference_number", \
-    comment = "i.e. third party payment transaction number"))
+    comment = T("i.e. third party payment transaction number")))
 
     # on form validation process values
     if form.accepts(request.vars, session):
@@ -1815,11 +1839,12 @@ def movements_add_payment_method():
         # Detailed quota amounts (uniform quota values)
         if quotas >1:
             quota_amount = amount/float(quotas)
-            detail += " Quotas: %s x%.2f" % (quotas, quota_amount)
+            detail += T(" Quotas: %(quotas)s x%(quota_amount).2f") % dict(quotas=quotas, quota_amount=quota_amount)
+            
 
         # Payment services transaction number in detail
         if len(reference) > 0:
-            detail += " Transaction number: %s" % reference
+            detail += T(" Transaction number: %s") % reference
 
         # insert the movement record if amount is not 0
         if amount != 0.0:
@@ -1855,7 +1880,7 @@ def movements_articles():
         rows = db(q).select()
 
         columns = ["concept.concept_id", "concept.code", "concept.description", "concept.family_id", "concept.color_id"]
-        headers = {"concept.concept_id": "Select", "concept.code": "Code", "concept.description": "Description", "concept.family_id": "Family", "concept.color_id": "Color"}
+        headers = {"concept.concept_id": T("Select"), "concept.code": T("Code"), "concept.description": T("Description"), "concept.family_id": T("Family"), "concept.color_id": T("Color")}
         
         table = SQLTABLE(rows, columns = columns, headers = headers, linkto = URL(f="movements_add_item"))
         

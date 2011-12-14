@@ -48,10 +48,10 @@ def current_accounts_type():
     """ Lets the user choose the type
     of current account administration """
     form = SQLFORM.factory(Field("current_accounts_type", \
-    requires = IS_IN_SET({"C":"Customer", "S":"Supplier"}), \
+    requires = IS_IN_SET({"C":T("Customer"), "S":T("Supplier")}), \
     widget = SQLFORM.widgets.radio.widget, default = "C"))
     if form.accepts(request.vars, session):
-        print "Current accounts type: %s" % request.vars.current_accounts_type
+        print T("Current accounts type: %(at)s") % dict(at=request.vars.current_accounts_type)
         session.current_accounts_type = request.vars.current_accounts_type
         redirect(URL(f="current_accounts_data"))
     return dict(form = form)
@@ -80,7 +80,7 @@ def current_accounts_data():
     "date", default = today), Field("due", "date", \
     default = today), Field("complete", "boolean"))
     if form.accepts(request.vars, session):
-        print "Form data: %s" % str(request.vars)
+        print T("Form data: %(fd)s") % dict(fd=str(request.vars))
         for k in request.vars:
             if not k.startswith("_"):
                 if k == "complete":
@@ -98,18 +98,18 @@ def current_accounts_data():
 def current_accounts_detail():
     """ List of current accounts operations"""
     if session.current_accounts_type == "C":
-        supplier_id = db(db.option.name == "default_supplier_id").select().first().value
+        supplier_id = db(db.supplier.code == db(db.option.name == "default_supplier_code").select().first().value).select().first().supplier_id
         session.current_accounts_supplier = supplier_id
         customer_id = session.current_accounts_customer
-        payment_label = "Collect"
+        payment_label = T("Collect")
 
     elif session.current_accounts_type == "S":
         supplier_id = session.current_accounts_supplier
-        customer_id = db(db.option.name == "default_customer_id").select().first().value
+        customer_id = db(db.customer.code == db(db.option.name == "default_customer_code").select().first().value).select().first().customer_id
         session.current_accounts_customer = customer_id
-        payment_label = "Pay"
+        payment_label = T("Pay")
 
-    print "Session data: %s" % session
+    print T("Session data: %s") % session
 
     # convert date string iso values
     starts_list = session.current_accounts_starts.split("-")
@@ -121,7 +121,7 @@ def current_accounts_detail():
     ends = datetime.datetime(int(ends_list[0]), int(ends_list[1]), int(ends_list[2]), 0, 0, 0) + datetime.timedelta(1)
     due = datetime.date(int(due_list[0]), int(due_list[1]), int(due_list[2]))
     
-    print "Dates: ", starts, ends, due
+    print T("Dates: "), starts, ends, due
     
     # TODO: repair query (returns no records or incomplete)
     # As the time value query is datetime based,
@@ -140,14 +140,14 @@ def current_accounts_detail():
     # values = dict( int operation_id = [float debit, float credit, float debit -credit], ... )
     
     values = operations_values(operations)
-    print "Values: %s" % values    
+    print T("Values: %s") % values    
 
     trows = []
     for operation in operations:
         trows.append(TR(TD(operation.document_id.description), TD(operation.operation_id), TD(operation.posted), TD(operation.due_date), TD(values[operation.operation_id][0]), TD(values[operation.operation_id][1]), TD(values[operation.operation_id][2]), TD(INPUT(_type="checkbox", _name="operation_%s" % operation.operation_id))))
     
     tbody = TBODY(*trows)
-    table = TABLE(THEAD(TR(TH("Document"), TH("Number"), TH("Date"), TH("Due date"), TH("Debit"), TH("Credit"), TH("Difference"), TH("Select"))), tbody)
+    table = TABLE(THEAD(TR(TH(T("Document")), TH(T("Number")), TH(T("Date")), TH(T("Due date")), TH(T("Debit")), TH(T("Credit")), TH(T("Difference")), TH(T("Select")))), tbody)
     
     form = FORM(SELECT(OPTION("Apply", _value="apply"), OPTION(payment_label, _value="payment"), _name="selection_action"), table, INPUT(_type="submit"))
     if form.accepts(request.vars, session):
@@ -171,9 +171,9 @@ def current_accounts_detail():
         else:
             session.current_accounts_values = values
 
-        print "Operation id(s): %s" % str(operation_ids)
-        print "Form data: %s" % request.vars
-        print "Selection action: %s" % request.vars.selection_action
+        print T("Operation id(s): %s") % str(operation_ids)
+        print T("Form data: %s") % request.vars
+        print T("Selection action: %s") % request.vars.selection_action
         if request.vars.selection_action == "payment":
             redirect(URL(f="current_accounts_payment"))
 
@@ -182,17 +182,28 @@ def current_accounts_detail():
 
 def current_accounts_payment():
     if session.current_accounts_type == "S":
-        point_of_sale_id = db(db.option.name == "purchases_payment_point_of_sale_id").select().first().value
+        
+        point_of_sale_id = db(db.point_of_sale.code ==  db( \
+        db.option.name == "purchases_payment_point_of_sale_code" \
+        ).select().first().value).select().first().point_of_sale_id
+        
         operation_type = "P"
         invert_value = -1
 
     elif session.current_accounts_type == "C":
-        point_of_sale_id = db(db.option.name == "sales_payment_point_of_sale_id").select().first().value
+        point_of_sale_id = db(\
+        db.point_of_sale.code == db(\
+        db.option.name == "sales_payment_point_of_sale_code" \
+        ).select().first().value).select().first().point_of_sale_id
+
         operation_type = "S"
         invert_value = 1
 
     # get the default payment terms for current accounts
-    payment_terms_id = db(db.option.name == "current_account_payment").select().first().value
+    payment_terms_id = db(\
+    db.payment_terms.code == db(\
+    db.option.name == "current_account_payment"\
+    ).select().first().value).select().first().payment_terms_id
 
     # document widget settings
     s = db(db.document.point_of_sale_id == point_of_sale_id)
@@ -203,7 +214,7 @@ def current_accounts_payment():
     values = session.current_accounts_values
     
     difference = sum([values[v][2] for v in values], 0.0) * invert_value
-    print "Calculated difference: %s" % difference
+    print T("Calculated difference: %s") % difference
 
     # pre-operation form
     form = SQLFORM.factory(Field("document", "reference document", requires = IS_IN_DB(s, i, f)), Field("amount", "double", default = difference), Field("concept", "reference concept", requires = IS_IN_DB(db(db.concept.current_account == True), "concept.concept_id", "%(description)s")), Field("payment_terms", "reference payment_terms", requires = IS_IN_DB(db(db.payment_terms.payment_terms_id != None), "payment_terms.payment_terms_id", "%(description)s")))
@@ -232,7 +243,7 @@ def current_accounts_payment():
         db.movement.insert(operation_id = operation_id, amount = amount, value = amount, quantity = 1, concept_id = concept.concept_id)
         session.operation_id = operation_id
 
-        print "Operation details: %s" % str(db.operation[operation_id])
+        print T("Operation details: %s") % str(db.operation[operation_id])
         
         redirect(URL(c="operations", f="movements_detail"))
 

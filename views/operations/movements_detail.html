@@ -1,9 +1,9 @@
 {{extend 'layout.html'}}
-<h1>Movements (Operations)</h1>
+<h1>{{=T("Movements (Operations)")}}</h1>
 <h3>{{=operation.document_id.description}} {{=operation.operation_id}}</h3>
 {{=HR()}}
 {{try:}}
-Supplier: {{=supplier.legal_name}}. TAX ID: {{=supplier.tax_identification}} | Customer: {{=customer.legal_name}}. TAX ID: {{=customer.tax_identification}} | {{ =A("Customer current account", _href=URL(c="crm", f="customer_current_account_status", args=["customer", operation.customer_id])) }} | {{ =A("Subcustomer current account", _href=URL(c="crm", f="customer_current_account_status", args=["subcustomer", operation.subcustomer_id])) }}
+{{=T("Supplier")}}: {{=supplier.legal_name}}. {{=T("TAX ID")}}: {{=supplier.tax_identification}} | {{=T("Customer")}}: {{=customer.legal_name}}. {{=T("TAX ID")}}: {{=customer.tax_identification}} | {{ =A(T("Customer current account"), _href=URL(c="crm", f="customer_current_account_status", args=["customer", operation.customer_id])) }} | {{ =A(T("Subcustomer current account"), _href=URL(c="crm", f="customer_current_account_status", args=["subcustomer", operation.subcustomer_id])) }}
 {{=HR()}}
 {{except (ValueError, KeyError, TypeError, AttributeError):}}
 Error trying to get the operation customer/supplier data from database
@@ -12,37 +12,37 @@ Error trying to get the operation customer/supplier data from database
 {{if price_list is not None:}}
 {{=price_list.description}}
 {{else:}}
-None selected
+{{=T("None selected")}}
 {{pass}}
 </h3>
 
-{{=A("Add item", _href=URL(f="movements_add_item"))}} | {{=A("Add payment method", _href=URL(f="movements_add_payment_method"))}} | {{=A("Add article", _href=URL(f="movements_articles"))}} | {{=A("Add check", _href=URL(f="movements_add_check"))}} | {{=A("Add tax", _href=URL(f="movements_add_tax"))}} | {{=A("Current account", _href=URL(f="movements_current_account_concept"))}} | {{=A("Discount/Surcharges", _href=URL(f="movements_add_discount_surcharge"))}} | {{=A("Process operation", _href=URL(f="movements_process"))}} | {{=A("Select price list", _href=URL(f="movements_price_list"))}}
+{{=A(T("Add item"), _href=URL(f="movements_add_item"))}} | {{=A(T("Add payment method"), _href=URL(f="movements_add_payment_method"))}} | {{=A(T("Add article"), _href=URL(f="movements_articles"))}} | {{=A(T("Add check"), _href=URL(f="movements_add_check"))}} | {{=A(T("Add tax"), _href=URL(f="movements_add_tax"))}} | {{=A(T("Current account"), _href=URL(f="movements_current_account_concept"))}} | {{=A(T("Discounts/Surcharges"), _href=URL(f="movements_add_discount_surcharge"))}} | {{=A(T("Process operation"), _href=URL(f="movements_process"))}} | {{=A(T("Select price list"), _href=URL(f="movements_price_list"))}}
 
 {{=HR()}}
-<h3>Options</h3>
+<h3>{{=T("Options")}}</h3>
 <ul>
 <li>
-Operation
+{{=T("Operation")}}:
 {{if update_stock == True:}}
- updates stock
+ {{=T("updates stock")}}
 {{elif update_stock == False:}}
- does not update stock
-{{pass}} ({{=A("Change", _href=URL(f="movements_option_update_stock"))}})
+ {{=T("does not update stock")}}
+{{pass}} ({{=A(T("Change"), _href=URL(f="movements_option_update_stock"))}})
 </li>
 <li>
-Warehouse: {{=warehouse}} ({{=A("Change", _href=URL(f="movements_select_warehouse"))}})
+{{=T("Warehouse")}}: {{=warehouse}} ({{=A(T("Change"), _href=URL(f="movements_select_warehouse"))}})
 </li>
 <li>
-Taxes are
+{{=T("Taxes are")}}:
 {{if update_taxes == True:}}
- updated
+ {{=T("updated")}}
 {{elif update_taxes == False:}}
- not updated
-{{pass}} ({{=A("Change", _href=URL(f="movements_option_update_taxes"))}})
+ {{=T("not updated")}}
+{{pass}} ({{=A(T("Change"), _href=URL(f="movements_option_update_taxes"))}})
 </li>
 </ul>
 
 {{=BEAUTIFY(movements)}}
 
 {{=HR()}}
-Total amount: {{=operation.amount}}
+{{=T("Total amount")}}: {{=operation.amount}}

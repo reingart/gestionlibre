@@ -1,12 +1,12 @@
 {{extend 'layout.html'}}
 <h1>{{=message}}</h1>
 {{=HR()}}
-<span>{{=A("List of operations", _href=URL(c="operations", f="index"))}}</span> | <span>{{=A('New installment', _href=URL(c="operations", f="operation_installment") )}}</span> | <span>{{=A('Installments', _href=URL(c="fees", f="list_installments") )}}</span>
+<span>{{=A(T("List of operations"), _href=URL(c="operations", f="index"))}}</span> | <span>{{=A(T('New installment'), _href=URL(c="operations", f="operation_installment") )}}</span> | <span>{{=A(T('Installments'), _href=URL(c="fees", f="list_installments") )}}</span>
 <span>{{=reset_operation_form}}</span>
 {{if process_operation_form:}}
   <span>{{=process_operation_form}}</span>
 {{pass}}
 {{=form}}
 {{=HR()}}
-<h3>Insert movements element</h3>
+<h3>{{=T("Insert movements element")}}</h3>
 {{=LOAD(c="operations", f="movements_element.load", ajax=True)}}

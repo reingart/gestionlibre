@@ -1,5 +1,5 @@
 {{left_sidebar_enabled=right_sidebar_enabled=False}}
-{{extend 'layout.html'}}
+{{extend 'gestionlibre.html'}} <!-- extend 'layout.html' -->
 
 {{if 'message' in globals():}}
 
@@ -7,7 +7,7 @@
 
 <hr />
 <ul>
-  <li>This is the index view of the project {{=A("GestionLibre", _href="http://code.google.com/p/gestionlibre/")}}</li>
+  <li>{{=T("This is the webapp index view of")}} {{=A(T("GestionLibre"), _href="http://code.google.com/p/gestionlibre/")}}</li>
   <li>{{=A(B(T("Customer control panel (requires registration and login)")), _href=URL(c='crm',f='customer_panel'))}}</li>
   <li>{{=A(B(T("Movements panel")), _href=URL(c='operations',f='index'))}}</li>
   <li>{{=A(B(T("RIA Stock")), _href=URL(c='scm',f='ria_stock'))}}</li>

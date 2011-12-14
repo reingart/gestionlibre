@@ -34,7 +34,7 @@ even if the function is called via ajax.
 
 {{=form}}
 {{=HR()}}
-{{=H3("List of operation elements")}}
-{{=SQLTABLE(movements_list, columns=["movement.movement_id", "movement.description", "movement.concept_id", "movement.quantity", "movement.posted"], headers={"movement.movement_id": "Edit", "movement.description": "Description","movement.concept_id": "Product","movement.quantity": "Qty", "movement.posted": "Posted"}, linkto=URL(c="operations", f="movements_modify_element.html"))}}
+{{=H3(T("List of operation elements"))}}
+{{=SQLTABLE(movements_list, columns=["movement.movement_id", "movement.description", "movement.concept_id", "movement.quantity", "movement.posted"], headers={"movement.movement_id": T("Edit"), "movement.description": T("Description"),"movement.concept_id": T("Product"),"movement.quantity": T("Qty"), "movement.posted": T("Posted")}, linkto=URL(c="operations", f="movements_modify_element.html"))}}
 
 {{pass}}

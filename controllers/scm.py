@@ -47,9 +47,9 @@ def ria_stock():
         columns = ['stock.stock_id', 'stock.code', \
         'stock.concept_id', \
         'stock.posted', 'stock.value']
-        headers = {'stock.stock_id': 'Edit', 'stock.code': 'Code', \
-        'stock.concept_id': 'Product', 'stock.posted': 'Posted', \
-        'stock.value': 'Value'}
+        headers = {'stock.stock_id': T('Edit'), 'stock.code': T('Code'), \
+        'stock.concept_id': T('Product'), 'stock.posted': T('Posted'), \
+        'stock.value': T('Value')}
 
         # TODO: unify action/function naming conventions
         stock_list = SQLTABLE(rows, columns = columns, \
@@ -80,14 +80,14 @@ def ria_stock():
         db.stock.warehouse_id == request.vars.warehouse)).select(\
         ).first()
         if request.vars.warehouse == request.vars.destination:
-            response.flash = "Please choose different warehouses"
+            response.flash = T("Please choose different warehouses")
         elif stock_item_source is not None:
             tmp_stock_value = stock_item_source.value - float(\
             request.vars.quantity)
             if tmp_stock_value < 0:
                 # negative stock
                 response.flash = \
-                "Insufficient source stock quantity"
+                T("Insufficient source stock quantity")
             else:
                 # get or create a stock            
                 stock_item_destination = db((\
@@ -110,11 +110,11 @@ def ria_stock():
                 db.stock[stock_item_destination_id].value)
                 db.stock[stock_item_destination_id].update_record(\
                 value = old_value + float(request.vars.quantity))
-                response.flash = "Stock updated"
+                response.flash = T("Stock updated")
         else:
             # the item does not exist
             response.flash = \
-            "The item specified was not found in the warehouse"
+            T("The item specified was not found in the warehouse")
     
     # Change stock value
     change_stock_form = SQLFORM.factory(
@@ -144,11 +144,11 @@ def ria_stock():
         float(request.vars.quantity)
         
         if tmp_value < 0:
-            response.flash = "Insufficient stock value."
+            response.flash = T("Insufficient stock value.")
         else:
             db.stock[stock_item_id].update_record(\
             value = tmp_value)
-            response.flash = "Stock value changed"
+            response.flash = T("Stock value changed")
             
     return dict(stock_list = stock_list, \
     stock_query_form = stock_query_form, \
@@ -158,5 +158,5 @@ def ria_stock():
 def stock_item_update():
     form = crud.update(db.stock, request.args[1])
     if form.accepts(request.vars, session, keepvalues = True):
-        response.flash = "Record updated"
+        response.flash = T("Record updated")
     return dict(form = form)

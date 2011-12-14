@@ -32,6 +32,6 @@ even if the function is called via ajax.
 {{else:}}
 {{=receipt_item_form}}
 {{=HR()}}
-{{=H3("Receipt items list")}}
+{{=H3(T("Receipt items list"))}}
 {{=receipt_items_list}}
 {{pass}}

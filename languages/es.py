@@ -247,6 +247,7 @@
 'List installments': 'List installments',
 'List of operation elements': 'Lista de elementos de la operación',
 'List of operations': 'Lista de operaciones',
+'List of order elements': 'List of order elements',
 'List order allocation operations': 'Lista de operaciones de asignaciones de pedidos',
 'List order allocations': 'Lista de asignaciones de pedidos',
 'Lists': 'Lists',

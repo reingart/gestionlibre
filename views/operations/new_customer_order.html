@@ -1,8 +1,8 @@
 {{extend 'layout.html'}}
-{{=H1("Edit order number "+ str(order.id))}}
+{{=H1(T("Edit order number") + " " + str(order.id))}}
 {{if customer:}}
-<h3>Customer: {{=customer.legal_name}}</h3>
-<span>{{=reset}}</span> <span>Order number: {{=order.operation_id}}</span> | <span>Code: {{=order.code}}</span> | <span>Description: {{=order.description}}</span> | <span>Date: {{=str(order.posted)}}</span>  | <span>{{=A("Customer control panel", _href=URL(c="crm", f="customer_panel"))}}</span>
+<h3>{{=T("Customer")}}: {{=customer.legal_name}}</h3>
+<span>{{=reset}}</span> <span>{{=T("Order number")}}: {{=order.operation_id}}</span> | <span>Code: {{=order.code}}</span> | <span>{{=T("Description")}}: {{=order.description}}</span> | <span>{{=T("Date")}}: {{=str(order.posted)}}</span>  | <span>{{=A(T("Customer control panel"), _href=URL(c="crm", f="customer_panel"))}}</span>
 {{=HR()}}
 
 <!-- Add order type options to sqlform object-->
@@ -19,8 +19,8 @@
 
 {{=form}}
 {{=HR()}}
-<h3>Insert order element</h3>
+<h3>{{=T("Insert order element")}}</h3>
 {{=LOAD(c="operations", f="new_customer_order_element.load", ajax=True)}}
 {{else:}}
-{{=P("You have not specified you firm's TAX ID. Please visit the ", A(EM("Post registration form"), _href=URL(c="registration", f="post_register_specify_firm")), " and try again")}}
+{{=P(T("You have not specified you firm's TAX ID. Please visit the"), A(EM(T("Post registration form")), _href=URL(c="registration", f="post_register_specify_firm")), T("and try again"))}}
 {{pass}}

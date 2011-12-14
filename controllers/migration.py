@@ -100,23 +100,26 @@ def populate_with_legacy_db(legacy_tables_route, legacy_tables):
 
                     if len(tmpdict) > 1:
                         db[table].insert(**tmpdict)
-                        records += 1 
+                        records += 1
                 except Exception, e:
                     # TODO: catch common db exceptions
-                    db.debugging.insert(msg="Populate_with_legacy_db Insert Error: Table %s, row %s: %s" % (table, str(n), str(e)))
+                    db.debugging.insert(msg=T("Populate_with_legacy_db Insert Error: Table %(table)s, row %(n)s: %(e)s") % dict(table=table, n=str(n), e=str(e)))
                     errors += 1
     return records, errors, voidstrings
 
 def index(): return dict(message="hello from migration.py")
 
 # Get legacy database records and insert them in the app's db
-def importcsvdir():
+def import_csv_dir():
     db(db.debugging.id > 0).delete()
     error_list=None
-    form = FORM(LABEL("CSV file name", _for="#csvinputfile"), INPUT(_id="csvinputfile", _type="text", _name="csvinputfile"), INPUT(_type="submit"))
+    form = SQLFORM.factory(
+                Field("csv_input_file", requires=IS_NOT_EMPTY(), comment=T("CSV parameters file: /absolute/path/file_name.csv")),
+                Field("csv_folder", requires=IS_NOT_EMPTY(), comment=T("CSV table files path: /absolute/path/tables_folder")),
+                )
     if form.accepts(request.vars, session):
-        legacytables = importcsvpattern(os.path.join(PRIVATE_ROUTE, request.vars["csvinputfile"]))
-        result = populate_with_legacy_db(LEGACY_TABLES_ROUTE, legacytables)
+        legacy_tables = import_csv_pattern(request.vars.csv_input_file)
+        result = populate_with_legacy_db(request.vars.csv_folder, legacy_tables)
         error_list = db(db.debugging).select()
         return dict(records = result[0], errors = result[1], voidstrings = result[2], form = form, error_list = error_list)
     return dict(records = "", errors = "", voidstrings = "", form = form, error_list = error_list)
@@ -125,7 +128,7 @@ def importcsvdir():
 # Input csv file: a list of records in the following syntax:
 # tablearchive.csv, db_table_name, db_field_name, csv_record_field_index,
 # data type (web2py dal), default value
-def importcsvpattern(path):
+def import_csv_pattern(path):
     csvfilename = ""
     tmpdict = {}
     spam_reader = csv.reader(open(path, "rb"))
@@ -141,3 +144,8 @@ def importcsvpattern(path):
             tmpdict[line[0]]["fields"].append((line[2].strip(), int(line[3]), str(line[4]).strip(), str(line[5]).strip()))
         csvfilename = line[0]
     return tmpdict
+
+# show app tables
+def tables():
+    return dict(tables = str(db.tables))
+    

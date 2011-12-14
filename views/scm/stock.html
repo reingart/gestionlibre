@@ -1,15 +1,15 @@
 {{extend 'layout.html'}}
-<h1>Stock</h1>
-<h3>Stock query</h3>
+<h1>{{=T("Stock")}}</h1>
+<h3>{{=T("Stock query")}}</h3>
 {{=stock_query_form}}
 {{=HR()}}
-<h3>Move stock items</h3>
+<h3>{{=T("Move stock items")}}</h3>
 {{=stock_movement_form}}
 {{=HR()}}
-<h3>Increase/Decrease stock values</h3>
+<h3>{{=T("Increase/decrease stock values")}}</h3>
 {{=change_stock_form}}
 {{=HR()}}
-<h3>Stock list</h3>
+<h3>{{=T("Stock list")}}</h3>
 {{if stock_list is not None:}}
 {{=stock_list}}
 {{pass}}

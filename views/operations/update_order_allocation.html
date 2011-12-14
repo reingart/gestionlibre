@@ -1,6 +1,6 @@
 {{extend 'layout.html'}}
-<h1>Update order allocation</h1>
-{{=A("New packing slip from this allocation", _href=URL(c="operations", f="packing_slip", args = request.args))}}
+<h1>{{=T("Update order allocation")}}</h1>
+{{=A(T("New packing slip from this allocation"), _href=URL(c="operations", f="packing_slip", args = request.args))}}
 {{=order_allocation}}
 {{=HR()}}
 {{=movements}}

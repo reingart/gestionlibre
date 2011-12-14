@@ -1,7 +1,7 @@
 {{extend 'layout.html'}}
 <h1>{{=message}}</h1>
-<span>{{=A("RIA Create/Edit operations", _href=URL(c="operations", f="ria_movements"))}}</span> | <span>{{=A('New customer', _href=URL(c='crm', f='new_customer'))}}</span> | <span>{{=A('New subcustomer', _href=URL(c='crm', f='new_subcustomer'))}}</span> | <span>{{=A('New fee', _href=URL(c='fees', f='create_fee'))}}</span> | <span>{{=A('Fees', _href=URL(c='fees', f='list_fees'))}}</span>
-{{=H3("Operations list")}}
+<span>{{=A(T("RIA Create/Edit operations"), _href=URL(c="operations", f="ria_movements"))}}</span> | <span>{{=A(T('New customer'), _href=URL(c='crm', f='new_customer'))}}</span> | <span>{{=A(T('New subcustomer'), _href=URL(c='crm', f='new_subcustomer'))}}</span> | <span>{{=A(T('New fee'), _href=URL(c='fees', f='create_fee'))}}</span> | <span>{{=A(T('Fees'), _href=URL(c='fees', f='list_fees'))}}</span>
+{{=H3(T("Operations list"))}}
 {{=SQLTABLE(operations, columns=["operation.operation_id", "operation.code","operation.description","operation.posted"], headers={
-"operation.operation_id": "Edit", "operation.code": "Code","operation.description": "Description","operation.posted": "Posted"}, linkto=URL(f="ria_movements"))}}
+"operation.operation_id": T("Edit"), "operation.code": T("Code"),"operation.description": T("Description"),"operation.posted": T("Posted")}, linkto=URL(f="ria_movements"))}}
 <!-- {{=BEAUTIFY(response._vars)}} -->

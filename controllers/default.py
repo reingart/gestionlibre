@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*- 
+try:
+    import info
+    version = info.version
+    
+except ImportError:
+    version = ""
+
 
 #########################################################################
 ## This is a samples controller
@@ -16,8 +23,9 @@ def index():
     Project's index page (incomplete)
     """
     
-    response.flash = T('Welcome to web2py and GestionLibre')
-    return dict(message=T('Prototype app'))
+    response.flash = T('GestionLibre %(version)s') % dict(version=version)
+    
+    return dict(message=T('Web interface'))
 
 
 def user():

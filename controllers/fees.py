@@ -6,10 +6,10 @@ def list_fees():
     return dict(fees = SQLTABLE(db(db.fee).select(), \
     columns = ["fee.fee_id", "fee.code", "fee.description", \
     "fee.due_date", "fee.document_id", "fee.starting", "fee.ending"], \
-    headers = {"fee.fee_id": "Edit", "fee.code": "Code", \
-    "fee.description": "Description", "fee.due_date": "Due date", \
-    "fee.document_id": "Document", "fee.starting": "Starting", \
-    "fee.ending": "Ending"}, \
+    headers = {"fee.fee_id": T("Edit"), "fee.code": T("Code"), \
+    "fee.description": T("Description"), "fee.due_date": T("Due date"), \
+    "fee.document_id": T("Document"), "fee.starting": T("Starting"), \
+    "fee.ending": T("Ending")}, \
     linkto=URL(c="fees", f="update_fee")))
     
 def update_fee():
@@ -32,11 +32,11 @@ def list_installments():
     columns = ["installment.installment_id","installment.customer_id",\
     "installment.subcustomer_id","installment.supplier_id", \
     "installment.fee_id", "installment.quotas"], \
-    headers = {"installment.installment_id": "Edit", \
-    "installment.customer_id": "Customer",\
-    "installment.subcustomer_id": "Subcustomer", \
-    "installment.supplier_id": "Supplier", \
-    "installment.fee_id": "Fee", "installment.quotas": "Quotas"}, \
+    headers = {"installment.installment_id": T("Edit"), \
+    "installment.customer_id": T("Customer"),\
+    "installment.subcustomer_id": T("Subcustomer"), \
+    "installment.supplier_id": T("Supplier"), \
+    "installment.fee_id": T("Fee"), "installment.quotas": T("Quotas")}, \
     linkto=URL(c="fees", f="update_installment")))
     
 def update_installment():
@@ -49,9 +49,9 @@ def list_quotas():
     columns = ["quota.quota_id","quota.number",\
     "quota.due_date", \
     "quota.fee_id", "quota.amount"], \
-    headers = {"quota.quota_id": "Edit","quota.number": "Number",\
-    "quota.due_date": "Due date", \
-    "quota.fee_id": "Fee", "quota.amount": "Quota"}, \
+    headers = {"quota.quota_id": T("Edit"),"quota.number": T("Number"),\
+    "quota.due_date": T("Due date"), \
+    "quota.fee_id": T("Fee"), "quota.amount": T("Quota")}, \
     linkto=URL(c="fees", f="update_quota.html")))
     
 def update_quota():

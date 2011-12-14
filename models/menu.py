@@ -18,7 +18,7 @@ response.meta.keywords = 'bla bla bla'
 response.menu = [
     (T('Index'), False, URL(request.application,'default','index'), []),
     (T('Setup'), False, None, [
-        (T('Populate tables'), False, URL(request.application,'migration','importcsvdir'), []),
+        (T('Populate tables'), False, URL(request.application,'migration','import_csv_dir'), []),
         (T('Set options'), False, URL(request.application,'setup','options'), []),
         (T('Initialize'), False, URL(request.application,'setup','initialize'), []),
         ]),

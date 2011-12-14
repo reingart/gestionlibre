@@ -1,0 +1,7 @@
+{{extend 'layout.html'}}
+{{ block header}}
+{{try:}}{{=auth.navbar(action=URL('default','user'))}}{{except:pass}}                  
+<h1><span id="appname">{{=A(IMG(_src=URL(c="static", f="images/gestionlibre-logo-blue-small.png")), _href="http://code.google.com/p/gestionlibre")}}</span></h1>
+<div style="clear: both;"></div><!-- Clear the divs -->
+{{ end }}
+{{ include }}

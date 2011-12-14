@@ -1,5 +1,54 @@
 # -*- coding: utf-8 -*- 
 
+import sys, os
+
+########################################################################
+# Pre-configuration for GestiónLibre paths and options
+########################################################################
+
+# Try to load GUI App ini values (test if they are stored in a storage
+# object first
+
+# sys.path change is not made because of threading
+# policies with web2py
+# 9/12/2011: back to sys.path.append(..
+# App routes.py is not run unless added to the web2py root routes.py
+# routes_app patterns
+
+_ini_values = session.get("_ini_values", None)
+_load_ini_values = session.get("_load_ini_values", True)
+
+if _ini_values is None and _load_ini_values:
+    # read values and pass them to the storage object
+    try:
+        with open(os.path.join(request.folder, "private", "webappconfig.ini"), "r") as config_file:
+            session._ini_values = dict()
+            for line in config_file.readlines():
+                values = line.strip().split("=")
+                if len(values) == 2:
+                    session._ini_values[values[0]] = values[1]
+
+        # set environment extra values
+        _modules_path = os.path.join(session._ini_values["GUI2PY_APP_FOLDER"], "modules")
+        session._modules_path = _modules_path
+
+    except IOError, e:
+        print "Error accessing webappconfig.ini: " + str(e)
+        session._modules_path = os.path.join(request.folder, "modules")
+        print "Changed modules path to" , session._modules_path
+
+# set _load... as False (avoid redundant load)
+session._load_ini_values = False
+
+if session.get("_modules_path", None) is not None:
+    if not session._modules_path in sys.path:
+        sys.path.append(session._modules_path)
+
+########################################################################
+# End of Pre-configuration for GestiónLibre paths and options
+########################################################################
+
+
 #########################################################################
 ## This scaffolding model makes your app work on Google App Engine too
 #########################################################################
@@ -11,10 +60,14 @@ if request.env.web2py_runtime_gae:            # if running on Google App Engine
     # from gluon.contrib.memdb import MEMDB
     # from google.appengine.api.memcache import Client
     # session.connect(request, response, db = MEMDB(Client()))
-else:                                         # else use a normal relational database
-    db = DAL('sqlite://storage.sqlite')       # if not, use SQLite or other DB
-    # db = DAL('postgres://web2py:web2py@localhost:5432/gestionlibre') # local postgresql connection
-    # TODO: adapt db model for dal pg auto-sql (unordered tables raise pg errors)
+else:
+    try:
+        # else use a normal relational database
+        db = DAL(session._ini_values["DB_URI"], folder = session._ini_values["DATABASES_FOLDER"]) # if not, use SQLite or other DB
+    except Exception, e:
+        # TODO: handle exceptions by class
+        raise HTTP(200, "An exception ocurred while connecting to the database. Please check the app configuration.")
+
 
 ## if no need for session
 # session.forget()
@@ -29,6 +82,13 @@ else:                                         # else use a normal relational dat
 ## (more options discussed in gluon/tools.py)
 #########################################################################
 
+# change translation folder to gui2py app's
+# T.folder = session._ini_values["GUI2PY_APP_FOLDER"]
+
+# change app's dir to local GUI GestiónLibre path
+# request.folder = session._ini_values["GUI2PY_APP_FOLDER"]
+
+
 from gluon.tools import *
 mail = Mail()                                  # mailer
 auth = Auth(globals(),db)                      # authentication/authorization
@@ -40,8 +100,14 @@ mail.settings.server = 'logging' or 'smtp.gmail.com:587'  # your SMTP server
 mail.settings.sender = 'you@gmail.com'         # your email
 mail.settings.login = 'username:password'      # your credentials or None
 
-auth.settings.hmac_key = 'sha512:3f00b793-28b8-4b3c-8ffb-081b57fac54a'   # before define_tables()
-auth.define_tables()                           # creates all needed tables
+# before define_tables()
+auth.settings.hmac_key = session._ini_values["HMAC_KEY"]
+
+# GestiónLibre default installation 'sha512:3f00b793-28b8-4b3c-8ffb-081b57fac54a'
+
+# performed on gestionlibre.define_tables()
+# auth.define_tables()                           # creates all needed tables
+
 auth.settings.mailer = mail                    # for user email verification
 auth.settings.registration_requires_verification = False
 auth.settings.registration_requires_approval = False
@@ -88,11 +154,19 @@ crud.settings.auth = None                      # =auth to enforce authorization 
 # As expected, no \t characters are allowed inside escaped text
 # TODO: Simplify/standarize serial code pseudo-syntax for user html form input
 
-
 migrate = True
-
 
 # import GestionLibre database definitions
 
-import db_gestionlibre
-db_gestionlibre.define_tables(db, auth, globals(), web2py = True)
+try:
+    import db_gestionlibre
+except ImportError, e:
+    msg = "Could not import table definitions: " + str(e)
+    print msg
+    raise HTTP(200, msg)
+
+db_gestionlibre.define_tables(db, auth, globals(), web2py = True, migrate=False, fake_migrate=False, T = T)
+
+# Any host can get generic views
+# TODO: local webapp restriction rules
+response.generic_patterns = ["*",]

@@ -3,8 +3,8 @@
 {{=form}}
 {{if installment:}}
 {{=HR()}}
-<h3>Installment</h3>
+<h3>{{=T("Installment")}}</h3>
 {{=crud.read(db.installment, installment)}}
 {{=HR()}}
-<h3>Total: {{=total}}</h3>
+<h3>{{=T("Total")}}: {{=total}}</h3>
 {{pass}}

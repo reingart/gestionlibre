@@ -1,11 +1,11 @@
 {{extend 'layout.html'}}
-<h1>Order allocation</h1>
-{{=A("List order allocation operations", _href=URL(c="operations", f="list_order_allocations"))}}
+<h1>{{=T("Order allocation")}}</h1>
+{{=A(T("List order allocation operations"), _href=URL(c="operations", f="list_order_allocations"))}}
 {{if len(operations) > 0:}}
-<h3>The following operations were created</h3>
-{{=BEAUTIFY([A("Order allocation %s" % str(o), _href=URL(c="operations", f="ria_movements", args=["operation", o])) for o in operations])}}
+<h3>{{=T("The following operations were created")}}</h3>
+{{=BEAUTIFY([A(T("Order allocation %s") % str(o), _href=URL(c="operations", f="ria_movements", args=["operation", o])) for o in operations])}}
 {{=HR()}}
-{{=A("New order allocation", _href=URL(c="operations", f="order_allocation"))}}
+{{=A(T("New order allocation"), _href=URL(c="operations", f="order_allocation"))}}
 {{else:}}
 {{=form}}
 {{pass}}

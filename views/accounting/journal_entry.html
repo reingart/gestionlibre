@@ -1,9 +1,9 @@
 {{extend 'layout.html'}}
-<h1>Journal Entry</h1>
+<h1>{{=T("Journal Entry")}}</h1>
 {{=journal_entry}}
 {{=HR()}}
-{{=H3("Entries")}}
+{{=H3(T("Entries"))}}
 {{=entries}}
 {{=HR()}}
-Journal entry total amount: {{=total}}
-{{if total != 0:}} <em>WARNING: JOURNAL ENTRY IS UNBALANCED</em>{{pass}}
+{{=T("Journal entry total amount")}}: {{=total}}
+{{if total != 0:}} <em>{{=T("WARNING: JOURNAL ENTRY IS UNBALANCED")}}</em>{{pass}}

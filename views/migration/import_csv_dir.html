@@ -1,0 +1,11 @@
+{{extend 'layout.html'}}
+{{=H3(T("Import legacy tables"))}}
+{{=form}}
+<p>DB records inserted: {{=records}}</p>
+<p>DB insert errors: {{=errors}}</p>
+<p>DB empty data cells: {{=voidstrings}}</p>
+
+{{if error_list:}}
+<h3>{{=T("Errors")}}</h3>
+{{=UL([LI(error.msg) for error in error_list])}}
+{{pass}}
